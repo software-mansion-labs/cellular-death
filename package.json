@@ -18,6 +18,7 @@
     "@biomejs/biome": "^2.2.5",
     "@tailwindcss/vite": "^4.1.14",
     "@webgpu/types": "^0.1.65",
+    "nw-builder": "^4.15.0",
     "tailwindcss": "^4.1.14",
     "typegpu": "https://pkg.pr.new/software-mansion/TypeGPU/typegpu@7320da746159cbb45eede15be0188cd2a3a3af6d",
     "typescript": "~5.8.3",
