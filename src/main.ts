@@ -3,7 +3,8 @@ import './style.css';
 import tgpu from 'typegpu';
 import * as d from 'typegpu/data';
 import * as wf from 'wayfare';
-import { createTerrarium } from './terrarium';
+import { createTerrarium } from './terrarium.ts';
+import { createInputManager } from './inputManager.ts';
 
 const floorMesh = wf.createRectangleMesh({
   width: d.vec3f(10, 0, 0),
@@ -54,6 +55,9 @@ async function initGame() {
 
   // Terrarium
   const terrarium = createTerrarium(root, world);
+
+  // Attaches
+  createInputManager(world, canvas);
 
   engine.run(() => {
     terrarium.update();

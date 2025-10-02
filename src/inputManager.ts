@@ -1,11 +1,11 @@
 import { trait, type World } from 'koota';
 import * as wf from 'wayfare';
 
-export const InputData = trait({
+export const InputData = trait(() => ({
   dragDeltaX: 0,
   dragDeltaY: 0,
   dragging: false,
-});
+}));
 
 export function createInputManager(world: World, canvas: HTMLCanvasElement) {
   let lastMouseX = 0;

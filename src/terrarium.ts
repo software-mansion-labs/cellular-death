@@ -6,13 +6,16 @@ import * as wf from 'wayfare';
 import { quatn } from 'wgpu-matrix';
 import { createBoxMesh } from './boxMesh.ts';
 import { createMoldSim } from './mold.ts';
+import { InputData } from './inputManager.ts';
 
 const VOLUME_SIZE = 128;
 const RAYMARCH_STEPS = 128;
 const DENSITY_MULTIPLIER = 2;
 const boxMesh = createBoxMesh(0.5, 0.5, 0.5);
 
-const TerrariumTag = trait();
+const Terrarium = trait({
+  angularMomentum: () => d.vec2f(),
+});
 
 export function createTerrarium(root: TgpuRoot, world: World) {
   const canFilter = root.enabledFeatures.has('float32-filterable');
@@ -86,7 +89,7 @@ export function createTerrarium(root: TgpuRoot, world: World) {
         const gamma = d.f32(1.4);
         const sigmaT = d.f32(DENSITY_MULTIPLIER);
 
-        const albedo = d.vec3f(0.57, 0.44, 0.96);
+        const albedo = d.vec3f(1);
 
         let transmittance = d.f32(1);
         let accum = d.vec3f();
@@ -131,7 +134,7 @@ export function createTerrarium(root: TgpuRoot, world: World) {
         }
 
         const alpha = 1 - transmittance;
-        return d.vec4f(accum, alpha);
+        return d.vec4f(0.2, 0.2, 0.2, 1).mul(0.4).add(d.vec4f(accum, alpha));
       });
 
       return {
@@ -167,10 +170,10 @@ export function createTerrarium(root: TgpuRoot, world: World) {
 
   // Terrarium
   world.spawn(
-    TerrariumTag,
+    Terrarium(),
     wf.MeshTrait(boxMesh),
     ...MoldMaterial.Bundle(),
-    wf.TransformTrait({ position: d.vec3f(0, 0, -2) }),
+    wf.TransformTrait({ position: d.vec3f(0, 0, -1.5) }),
     wf.ExtraBindingTrait({ group: undefined }),
   );
 
@@ -179,20 +182,34 @@ export function createTerrarium(root: TgpuRoot, world: World) {
       // Update terrarium logic here
       sim.tick(world);
 
+      const time = wf.getOrThrow(world, wf.Time);
+
       // biome-ignore lint/style/noNonNullAssertion: there's a camera
       const camera = world.queryFirst(wf.ActiveCameraTag)!;
       const cameraPos = wf.getOrThrow(camera, wf.TransformTrait).position;
 
+      const inputData = wf.getOrThrow(world, InputData);
+
       world
-        .query(wf.TransformTrait, wf.ExtraBindingTrait, TerrariumTag)
-        .updateEach(([transform, extraBinding]) => {
+        .query(Terrarium, wf.TransformTrait, wf.ExtraBindingTrait)
+        .updateEach(([terrarium, transform, extraBinding]) => {
           extraBinding.group = renderBindGroups[1 - sim.currentTexture];
           cameraPosUniform.write(cameraPos);
-          transform.rotation = quatn.fromAxisAngle(
-            std.normalize(d.vec3f(1, 0.6, 0)),
-            performance.now() / 1000,
-            d.vec4f(),
+
+          const ang = terrarium.angularMomentum;
+          ang.x = wf.encroach(ang.x, 0, 0.01, time.deltaSeconds);
+          ang.y = wf.encroach(ang.y, 0, 0.01, time.deltaSeconds);
+
+          quatn.mul(
+            quatn.fromEuler(ang.x, ang.y, 0, 'xyz', d.vec4f()),
+            transform.rotation,
+            transform.rotation,
           );
+
+          if (inputData.dragging) {
+            ang.x = inputData.dragDeltaY * 0.002;
+            ang.y = inputData.dragDeltaX * 0.002;
+          }
         });
     },
   };
