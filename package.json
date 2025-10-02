@@ -27,5 +27,9 @@
     "wayfare": "^0.3.0-alpha.0"
   },
   "license": "MIT",
-  "packageManager": "pnpm@10.17.1"
+  "packageManager": "pnpm@10.17.1",
+  "dependencies": {
+    "koota": "^0.5.1",
+    "wgpu-matrix": "^3.4.0"
+  }
 }

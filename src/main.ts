@@ -1,13 +1,21 @@
 import './style.css';
 
 import tgpu from 'typegpu';
+import { trait } from 'koota';
 import * as d from 'typegpu/data';
+import { quatn } from 'wgpu-matrix';
 import * as wf from 'wayfare';
+import { createBoxMesh } from './boxMesh.ts';
+import { normalize } from 'typegpu/std';
 
 const floorMesh = wf.createRectangleMesh({
   width: d.vec3f(10, 0, 0),
   height: d.vec3f(0, 0, -10),
 });
+
+const boxMesh = createBoxMesh(1, 1, 1);
+
+const TerrariumTag = trait();
 
 async function initGame() {
   const root = await tgpu.init();
@@ -43,12 +51,26 @@ async function initGame() {
   // Floor
   world.spawn(
     wf.MeshTrait(floorMesh),
-    wf.TransformTrait({ position: d.vec3f(0, -5, -15) }),
+    wf.TransformTrait({ position: d.vec3f(0, -5, -10) }),
     ...wf.BlinnPhongMaterial.Bundle({ albedo: d.vec3f(0.7, 0.5, 0.3) }),
   );
 
+  // Terrarium
+  world.spawn(
+    TerrariumTag,
+    wf.MeshTrait(boxMesh),
+    wf.TransformTrait({ position: d.vec3f(0, 0, -10) }),
+    ...wf.BlinnPhongMaterial.Bundle({ albedo: d.vec3f(1, 1, 1) }),
+  );
+
   engine.run(() => {
-    // TODO: Per-frame update logic
+    world.query(wf.TransformTrait, TerrariumTag).updateEach(([transform]) => {
+      transform.rotation = quatn.fromAxisAngle(
+        normalize(d.vec3f(1, 0.6, 0)),
+        performance.now() / 1000,
+        d.vec4f(),
+      );
+    });
   });
 }
 
