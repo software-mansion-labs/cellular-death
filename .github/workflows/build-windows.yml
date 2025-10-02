@@ -39,14 +39,14 @@ jobs:
           name: windows-build
           path: out/win/
 
-       - name: Create Release
-         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-         run: |
-           $KEY = "v" + (Get-Date -Format "yyyyMMddHHmmss")
-           $archivePath = "out/win.zip"
-           Compress-Archive -Path "out/win" -DestinationPath $archivePath
-           gh release create $KEY --title "Windows Build Release" --notes "Automated Windows build from run ${{ github.run_number }}"
-           gh release upload $KEY $archivePath --clobber
+      - name: Create Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          $KEY = "v" + (Get-Date -Format "yyyyMMddHHmmss")
+          $archivePath = "out/win.zip"
+          Compress-Archive -Path "out/win" -DestinationPath $archivePath
+          gh release create $KEY --title "Windows Build Release" --notes "Automated Windows build from run ${{ github.run_number }}"
+          gh release upload $KEY $archivePath --clobber
 
       - name: Comment PR with artifact URLs
         if: success() && github.event_name == 'pull_request'
