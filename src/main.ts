@@ -1,8 +1,8 @@
-import "./style.css";
+import './style.css';
 
-import tgpu from "typegpu";
-import * as d from "typegpu/data";
-import * as wf from "wayfare";
+import tgpu from 'typegpu';
+import * as d from 'typegpu/data';
+import * as wf from 'wayfare';
 
 const floorMesh = wf.createRectangleMesh({
   width: d.vec3f(10, 0, 0),
@@ -11,8 +11,8 @@ const floorMesh = wf.createRectangleMesh({
 
 async function initGame() {
   const root = await tgpu.init();
-  const canvas = document.querySelector("canvas") as HTMLCanvasElement;
-  const context = canvas.getContext("webgpu") as GPUCanvasContext;
+  const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+  const context = canvas.getContext('webgpu') as GPUCanvasContext;
 
   const renderer = new wf.Renderer(root, canvas, context);
   const engine = new wf.Engine(root, renderer);
@@ -24,7 +24,7 @@ async function initGame() {
     renderer.updateViewport(canvas.width, canvas.height);
   };
   resizeCanvas(canvas);
-  window.addEventListener("resize", () => resizeCanvas(canvas));
+  window.addEventListener('resize', () => resizeCanvas(canvas));
 
   const world = engine.world;
 
