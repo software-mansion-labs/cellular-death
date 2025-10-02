@@ -20,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: "22"
 
       - name: Install dependencies
         run: npm install --force
@@ -36,3 +36,14 @@ jobs:
         with:
           name: windows-build
           path: out/win/
+
+      - name: Create Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          gh release create "v$(date +%Y%m%d%H%M%S)" --title "Windows Build Release" --notes "Automated Windows build from run ${{ github.run_number }}"
+          gh release upload "v$(date +%Y%m%d%H%M%S)" out/win/* --clobber
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        run: |
+          gh pr comment ${{ github.event.number }} --body "Windows build artifact is available in this run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
