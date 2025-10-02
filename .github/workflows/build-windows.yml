@@ -42,9 +42,9 @@ jobs:
       - name: Create Release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          KEY="v$(date +%Y%m%d%H%M%S)"
-          gh release create "$KEY" --title "Windows Build Release" --notes "Automated Windows build from run ${{ github.run_number }}"
-          gh release upload "$KEY" out/win/* --clobber
+          $KEY = "v" + (Get-Date -Format "yyyyMMddHHmmss")
+          gh release create $KEY --title "Windows Build Release" --notes "Automated Windows build from run ${{ github.run_number }}"
+          gh release upload $KEY out/win/* --clobber
 
       - name: Comment PR with artifact URLs
         if: success() && github.event_name == 'pull_request'
