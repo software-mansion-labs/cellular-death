@@ -1,0 +1,7 @@
+{
+  "name": "game",
+  "window": {
+    "title": "Game"
+  },
+  "main": "index.html"
+}

@@ -1,0 +1,26 @@
+{
+  "name": "wayfare-game-template",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "download:mac": "chmod +x scripts/download.sh && ./scripts/download.sh https://dl.nwjs.io/v0.104.0/nwjs-sdk-v0.104.0-osx-arm64.zip nwjs-sdk-osx",
+    "run:mac": "pnpm download:mac && pnpm build && cp package-nwjs-template.json dist/package.json && bin/nwjs-sdk-osx/nwjs.app/Contents/MacOS/nwjs dist",
+    "download:win": "chmod +x scripts/download.sh && ./scripts/download.sh https://dl.nwjs.io/v0.104.0/nwjs-v0.104.0-win-x64.zip nwjs-win",
+    "build:win": "chmod +x scripts/bundle.sh && ./scripts/bundle.sh",
+    "clean": "rm -rf dist bin build"
+  },
+  "devDependencies": {
+    "@webgpu/types": "^0.1.65",
+    "typegpu": "https://pkg.pr.new/software-mansion/TypeGPU/typegpu@7320da746159cbb45eede15be0188cd2a3a3af6d",
+    "typescript": "~5.8.3",
+    "unplugin-typegpu": "^0.2.2",
+    "vite": "^7.1.7",
+    "wayfare": "^0.3.0-alpha.0"
+  },
+  "license": "MIT",
+  "packageManager": "pnpm@10.17.1"
+}
