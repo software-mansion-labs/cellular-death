@@ -1,24 +1,21 @@
 import './style.css';
 
-import { trait } from 'koota';
 import tgpu from 'typegpu';
 import * as d from 'typegpu/data';
-import { normalize } from 'typegpu/std';
 import * as wf from 'wayfare';
-import { quatn } from 'wgpu-matrix';
-import { createBoxMesh } from './boxMesh.ts';
+import { createTerrarium } from './terrarium';
 
 const floorMesh = wf.createRectangleMesh({
   width: d.vec3f(10, 0, 0),
   height: d.vec3f(0, 0, -10),
 });
 
-const boxMesh = createBoxMesh(1, 1, 1);
-
-const TerrariumTag = trait();
-
 async function initGame() {
-  const root = await tgpu.init();
+  const root = await tgpu.init({
+    device: {
+      optionalFeatures: ['float32-filterable'],
+    },
+  });
   const canvas = document.querySelector('canvas') as HTMLCanvasElement;
   const context = canvas.getContext('webgpu') as GPUCanvasContext;
 
@@ -56,21 +53,10 @@ async function initGame() {
   );
 
   // Terrarium
-  world.spawn(
-    TerrariumTag,
-    wf.MeshTrait(boxMesh),
-    wf.TransformTrait({ position: d.vec3f(0, 0, -10) }),
-    ...wf.BlinnPhongMaterial.Bundle({ albedo: d.vec3f(1, 1, 1) }),
-  );
+  const terrarium = createTerrarium(root, world);
 
   engine.run(() => {
-    world.query(wf.TransformTrait, TerrariumTag).updateEach(([transform]) => {
-      transform.rotation = quatn.fromAxisAngle(
-        normalize(d.vec3f(1, 0.6, 0)),
-        performance.now() / 1000,
-        d.vec4f(),
-      );
-    });
+    terrarium.update();
   });
 }
 
