@@ -23,7 +23,7 @@ jobs:
           node-version: "18"
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Run packaging script
         run: node ./scripts/pkg-win.js
