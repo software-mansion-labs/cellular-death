@@ -1,5 +1,5 @@
 import * as d from 'typegpu/data';
-import { neg, normalize } from 'typegpu/std';
+import { normalize } from 'typegpu/std';
 import * as wf from 'wayfare';
 
 type MeshData = {

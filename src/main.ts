@@ -1,12 +1,12 @@
 import './style.css';
 
-import tgpu from 'typegpu';
 import { trait } from 'koota';
+import tgpu from 'typegpu';
 import * as d from 'typegpu/data';
-import { quatn } from 'wgpu-matrix';
-import * as wf from 'wayfare';
-import { createBoxMesh } from './boxMesh.ts';
 import { normalize } from 'typegpu/std';
+import * as wf from 'wayfare';
+import { quatn } from 'wgpu-matrix';
+import { createBoxMesh } from './boxMesh.ts';
 
 const floorMesh = wf.createRectangleMesh({
   width: d.vec3f(10, 0, 0),
