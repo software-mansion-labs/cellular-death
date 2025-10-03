@@ -3,8 +3,8 @@ import './style.css';
 import tgpu from 'typegpu';
 import * as d from 'typegpu/data';
 import * as wf from 'wayfare';
-import { createTerrarium } from './terrarium.ts';
 import { createInputManager } from './inputManager.ts';
+import { createTerrarium } from './terrarium.ts';
 
 const floorMesh = wf.createRectangleMesh({
   width: d.vec3f(10, 0, 0),
