@@ -29,6 +29,15 @@ canvas {
   padding-top: 30vh;
   color: white;
   font-family: sans-serif;
+
+  opacity: 1;
+  transition: opacity 1s;
+  pointer-events: auto;
+}
+
+#titleScreen.hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
 #titleScreen h1 {

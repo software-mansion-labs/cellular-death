@@ -20,10 +20,6 @@ async function initGame() {
   const canvas = document.querySelector('canvas') as HTMLCanvasElement;
   const context = canvas.getContext('webgpu') as GPUCanvasContext;
 
-  document.querySelector("#startButton")?.addEventListener("click", () => {
-    document.getElementById("titleScreen")!.style.display = "none";
-  });
-
   const renderer = new wf.Renderer(root, canvas, context);
   const engine = new wf.Engine(root, renderer);
 
@@ -35,6 +31,11 @@ async function initGame() {
   };
   resizeCanvas(canvas);
   window.addEventListener('resize', () => resizeCanvas(canvas));
+
+  // Main menu dismiss
+  document.querySelector("#startButton")?.addEventListener("click", () => {
+    document.getElementById("titleScreen")?.classList.add("hidden");
+  });
 
   const world = engine.world;
 
