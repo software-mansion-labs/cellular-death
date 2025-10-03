@@ -49,7 +49,7 @@ function initButtons() {
   });
 
   muteButton?.addEventListener("click", () => {
-    console.log("Mute clicked");
+    Tone.getDestination().mute = !Tone.getDestination().mute;
   });
 
   // reset button
