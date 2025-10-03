@@ -28,6 +28,25 @@ export function createTerrarium(root: TgpuRoot, world: World) {
     cameraPos: { uniform: d.vec3f },
   });
 
+  const getMoldDensity = (coord: d.v3f): number => {
+    'kernel';
+    return std.textureSampleLevel(renderLayout.$.state, sampler, coord, 0).x;
+  };
+
+  const getNormal = (p: d.v3f): d.v3f => {
+    'kernel';
+    const density = getMoldDensity(p);
+    const e = 0.01;
+
+    const n = d.vec3f(
+      getMoldDensity(p.add(d.vec3f(e, 0, 0))) - density,
+      getMoldDensity(p.add(d.vec3f(0, e, 0))) - density,
+      getMoldDensity(p.add(d.vec3f(0, 0, e))) - density,
+    );
+
+    return std.normalize(n);
+  };
+
   const sampler = tgpu['~unstable'].sampler({
     magFilter: canFilter ? 'linear' : 'nearest',
     minFilter: canFilter ? 'linear' : 'nearest',
@@ -96,6 +115,9 @@ export function createTerrarium(root: TgpuRoot, world: World) {
 
         const TMin = d.f32(1e-3);
 
+        let solid = false;
+        let normal = d.vec3f();
+
         for (let i = 0; i < numSteps; i++) {
           if (transmittance <= TMin) {
             break;
@@ -115,13 +137,7 @@ export function createTerrarium(root: TgpuRoot, world: World) {
             continue;
           }
 
-          const sampleValue = std.textureSampleLevel(
-            renderLayout.$.state,
-            sampler,
-            texCoord,
-            0,
-          ).x;
-
+          const sampleValue = getMoldDensity(texCoord);
           const d0 = std.smoothstep(thresholdLo, thresholdHi, sampleValue);
           const density = std.pow(d0, gamma);
 
@@ -131,10 +147,22 @@ export function createTerrarium(root: TgpuRoot, world: World) {
 
           accum = accum.add(contrib.mul(transmittance));
           transmittance = transmittance * (1 - alphaSrc);
+
+          if (transmittance < 0.8) {
+            solid = true;
+            normal = getNormal(texCoord);
+            break;
+          }
         }
 
-        const alpha = 1 - transmittance;
-        return d.vec4f(0.2, 0.2, 0.2, 1).mul(0.4).add(d.vec4f(accum, alpha));
+        // const alpha = 1 - transmittance;
+        // return d.vec4f(0.2, 0.2, 0.2, 1).mul(0.4).add(d.vec4f(accum, alpha));
+
+        if (solid) {
+          return d.vec4f(std.abs(normal), 1);
+        } else {
+          return d.vec4f(0);
+        }
       });
 
       return {
@@ -207,8 +235,8 @@ export function createTerrarium(root: TgpuRoot, world: World) {
           );
 
           if (inputData.dragging) {
-            ang.x = inputData.dragDeltaY * 0.002;
-            ang.y = inputData.dragDeltaX * 0.002;
+            ang.x = inputData.dragDeltaY * 2;
+            ang.y = inputData.dragDeltaX * 2;
           }
         });
     },

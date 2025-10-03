@@ -5,6 +5,8 @@ import * as d from 'typegpu/data';
 import * as wf from 'wayfare';
 import { createTerrarium } from './terrarium.ts';
 import { createInputManager } from './inputManager.ts';
+import { createChamber } from './chamber.ts';
+import { createCameraRig } from './cameraRig.ts';
 
 const floorMesh = wf.createRectangleMesh({
   width: d.vec3f(10, 0, 0),
@@ -34,18 +36,6 @@ async function initGame() {
 
   const world = engine.world;
 
-  // Camera
-  world.spawn(
-    wf.PerspectiveCamera({
-      fov: 70,
-      clearColor: d.vec4f(0.1, 0.1, 0.4, 1),
-      near: 0.1,
-      far: 100,
-    }),
-    wf.ActiveCameraTag,
-    wf.TransformTrait({ position: d.vec3f(0, 0, 0) }),
-  );
-
   // Floor
   world.spawn(
     wf.MeshTrait(floorMesh),
@@ -53,14 +43,21 @@ async function initGame() {
     ...wf.BlinnPhongMaterial.Bundle({ albedo: d.vec3f(0.7, 0.5, 0.3) }),
   );
 
+  // Attaches input controls to the canvas
+  createInputManager(world, canvas);
+
+  // Chamber
+  createChamber(world);
+
   // Terrarium
   const terrarium = createTerrarium(root, world);
 
-  // Attaches
-  createInputManager(world, canvas);
+  // Camera rig
+  const cameraRig = createCameraRig(world);
 
   engine.run(() => {
     terrarium.update();
+    cameraRig.update();
   });
 }
 
