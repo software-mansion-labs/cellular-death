@@ -27,9 +27,9 @@
   "license": "MIT",
   "packageManager": "pnpm@10.17.1",
   "dependencies": {
-    "@typegpu/noise": "https://pkg.pr.new/software-mansion/TypeGPU/@typegpu/noise@5fb9a434e8c8b0287fce9e03e824a02f6599fb62",
-    "typegpu": "https://pkg.pr.new/software-mansion/TypeGPU/typegpu@5fb9a434e8c8b0287fce9e03e824a02f6599fb62",
-    "wayfare": "^0.3.0-alpha.6",
+    "@typegpu/noise": "https://pkg.pr.new/software-mansion/TypeGPU/@typegpu/noise@2e96c75eb3d2332c02c2aff0f191a55600248381",
+    "typegpu": "https://pkg.pr.new/software-mansion/TypeGPU/typegpu@2e96c75eb3d2332c02c2aff0f191a55600248381",
+    "wayfare": "^0.3.0-alpha.8",
     "koota": "^0.5.1",
     "wgpu-matrix": "^3.4.0"
   }

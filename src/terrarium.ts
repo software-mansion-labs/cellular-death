@@ -423,7 +423,7 @@ export function createTerrarium(root: TgpuRoot, world: World) {
     Terrarium(),
     wf.MeshTrait(boxMesh),
     ...MoldMaterial.Bundle(),
-    wf.TransformTrait({ position: d.vec3f(0, 0, -1.5) }),
+    wf.TransformTrait({ position: d.vec3f(0) }),
     wf.ExtraBindingTrait({ group: undefined }),
   );
 

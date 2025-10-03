@@ -6,6 +6,7 @@ import { createCameraRig } from './cameraRig.ts';
 import { createChamber } from './chamber.ts';
 import { createInputManager } from './inputManager.ts';
 import { createTerrarium } from './terrarium.ts';
+import { createSun } from './sun.ts';
 
 function initButtons() {
   // start button
@@ -74,8 +75,10 @@ async function initGame() {
   // Attaches input controls to the canvas
   createInputManager(world, canvas);
 
+  const sun = createSun(root, engine);
+
   // Chamber
-  createChamber(world);
+  createChamber(root, world, sun);
 
   // Terrarium
   const terrarium = createTerrarium(root, world);
@@ -86,6 +89,7 @@ async function initGame() {
   engine.run(() => {
     terrarium.update();
     cameraRig.update();
+    sun.update();
   });
 }
 
