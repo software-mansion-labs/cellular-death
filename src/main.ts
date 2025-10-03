@@ -7,6 +7,7 @@ import { createCameraRig } from './cameraRig.ts';
 import { createChamber } from './chamber.ts';
 import { createInputManager } from './inputManager.ts';
 import { createTerrarium } from './terrarium.ts';
+import { createSun } from './sun.ts';
 
 const floorMesh = wf.createRectangleMesh({
   width: d.vec3f(10, 0, 0),
@@ -35,8 +36,8 @@ async function initGame() {
   window.addEventListener('resize', () => resizeCanvas(canvas));
 
   // Main menu dismiss
-  document.querySelector("#startButton")?.addEventListener("click", () => {
-    document.getElementById("titleScreen")?.classList.add("hidden");
+  document.querySelector('#startButton')?.addEventListener('click', () => {
+    document.getElementById('titleScreen')?.classList.add('hidden');
   });
 
   const world = engine.world;
@@ -51,8 +52,10 @@ async function initGame() {
   // Attaches input controls to the canvas
   createInputManager(world, canvas);
 
+  const sun = createSun(root, engine);
+
   // Chamber
-  createChamber(world);
+  createChamber(root, world, sun);
 
   // Terrarium
   const terrarium = createTerrarium(root, world);
@@ -63,6 +66,7 @@ async function initGame() {
   engine.run(() => {
     terrarium.update();
     cameraRig.update();
+    sun.update();
   });
 }
 

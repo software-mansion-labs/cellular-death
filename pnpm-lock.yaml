@@ -18,8 +18,8 @@ importers:
         specifier: https://pkg.pr.new/software-mansion/TypeGPU/typegpu@2e96c75eb3d2332c02c2aff0f191a55600248381
         version: https://pkg.pr.new/software-mansion/TypeGPU/typegpu@2e96c75eb3d2332c02c2aff0f191a55600248381
       wayfare:
-        specifier: ^0.3.0-alpha.6
-        version: 0.3.0-alpha.6(koota@0.5.1)(typegpu@https://pkg.pr.new/software-mansion/TypeGPU/typegpu@2e96c75eb3d2332c02c2aff0f191a55600248381)(wgpu-matrix@3.4.0)
+        specifier: ^0.3.0-alpha.8
+        version: 0.3.0-alpha.8(koota@0.5.1)(typegpu@https://pkg.pr.new/software-mansion/TypeGPU/typegpu@2e96c75eb3d2332c02c2aff0f191a55600248381)(wgpu-matrix@3.4.0)
       wgpu-matrix:
         specifier: ^3.4.0
         version: 3.4.0
@@ -1524,9 +1524,9 @@ packages:
       yaml:
         optional: true
 
-  wayfare@0.3.0-alpha.6:
-    resolution: {integrity: sha512-vNJNzwD0tJmK45d7Cw+kdi5TE9LhlRvDYpykV2NgfQ8wstKkknEUcEGZs/y6vPWobSJeczHAanIftDAIo/O52A==}
-    version: 0.3.0-alpha.6
+  wayfare@0.3.0-alpha.8:
+    resolution: {integrity: sha512-DTuMeTsAqT11aDLq+q+5VnKi3VxjFoiPICb98OFOQ/SqngI1jkiJ7uR4vQgSH99vGl7tnQHrsUquWfVvRScByg==}
+    version: 0.3.0-alpha.8
     peerDependencies:
       koota: ^0.5.0
       typegpu: ^0.7.0
@@ -2914,7 +2914,7 @@ snapshots:
       jiti: 2.6.1
       lightningcss: 1.30.1
 
-  wayfare@0.3.0-alpha.6(koota@0.5.1)(typegpu@https://pkg.pr.new/software-mansion/TypeGPU/typegpu@2e96c75eb3d2332c02c2aff0f191a55600248381)(wgpu-matrix@3.4.0):
+  wayfare@0.3.0-alpha.8(koota@0.5.1)(typegpu@https://pkg.pr.new/software-mansion/TypeGPU/typegpu@2e96c75eb3d2332c02c2aff0f191a55600248381)(wgpu-matrix@3.4.0):
     dependencies:
       '@loaders.gl/core': 4.3.4
       '@loaders.gl/gltf': 4.3.4(@loaders.gl/core@4.3.4)
