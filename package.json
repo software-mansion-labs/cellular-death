@@ -28,9 +28,10 @@
   "packageManager": "pnpm@10.17.1",
   "dependencies": {
     "@typegpu/noise": "https://pkg.pr.new/software-mansion/TypeGPU/@typegpu/noise@5fb9a434e8c8b0287fce9e03e824a02f6599fb62",
+    "koota": "^0.5.1",
+    "tone": "^15.1.22",
     "typegpu": "https://pkg.pr.new/software-mansion/TypeGPU/typegpu@5fb9a434e8c8b0287fce9e03e824a02f6599fb62",
     "wayfare": "^0.3.0-alpha.6",
-    "koota": "^0.5.1",
     "wgpu-matrix": "^3.4.0"
   }
 }

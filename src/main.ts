@@ -6,13 +6,27 @@ import { createCameraRig } from './cameraRig.ts';
 import { createChamber } from './chamber.ts';
 import { createInputManager } from './inputManager.ts';
 import { createTerrarium } from './terrarium.ts';
+import * as Tone from 'tone';
 
 function initButtons() {
   // start button
   const startButton = document.querySelector("#startButton");
 
-  startButton?.addEventListener("click", () => {
+  const clickSfx = new Tone.Player("assets/sfx/ambient-snare.mp3").toDestination();
+  const backgroudMusic =  new Tone.Player("assets/sfx/background-music.mp3").toDestination();
+  backgroudMusic.loop = true;
+
+  startButton?.addEventListener("click", async () => {
     document.getElementById("titleScreen")?.classList.add("hidden");
+
+    // setup Tone
+    Tone.start();
+
+    // play the clickSfx
+    Tone.loaded().then(() => { 
+      clickSfx.start(); 
+      clickSfx.onstop = () => backgroudMusic.start();
+    } );
   });
 
   // mute button
