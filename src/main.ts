@@ -55,6 +55,7 @@ async function initGame() {
 
   // Terrarium
   const terrarium = createTerrarium(root, world);
+  const terrarium2 = createTerrarium(root, world);
 
   // Attaches
   createInputManager(world, canvas);
