@@ -1,6 +1,10 @@
 import { randf } from '@typegpu/noise';
 import type { World } from 'koota';
-import tgpu, { prepareDispatch, type TgpuRoot } from 'typegpu';
+import tgpu, {
+  prepareDispatch,
+  type TgpuRoot,
+  type TgpuTextureView,
+} from 'typegpu';
 import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import * as wf from 'wayfare';
@@ -32,7 +36,13 @@ const Params = d.struct({
   evaporationRate: d.f32,
 });
 
-export function createMoldSim(root: TgpuRoot, volumeSize: number) {
+export function createMoldSim(
+  root: TgpuRoot,
+  volumeSize: number,
+  terrainTexture: TgpuTextureView<
+    d.WgslStorageTexture3d<'r32float', 'read-only'>
+  >,
+) {
   const resolution = d.vec3f(volumeSize);
 
   const agentsData = root.createMutable(d.arrayOf(Agent, NUM_AGENTS));
@@ -71,6 +81,7 @@ export function createMoldSim(root: TgpuRoot, volumeSize: number) {
   const computeLayout = tgpu.bindGroupLayout({
     oldState: { storageTexture: d.textureStorage3d('r32float', 'read-only') },
     newState: { storageTexture: d.textureStorage3d('r32float', 'write-only') },
+    terrain: { storageTexture: d.textureStorage3d('r32float', 'read-only') },
   });
 
   const SenseResult = d.struct({
@@ -94,6 +105,46 @@ export function createMoldSim(root: TgpuRoot, volumeSize: number) {
     }
 
     return std.normalize(std.cross(dir, axis));
+  };
+
+  const getTerrainNormal = (pos: d.v3f, dimsf: d.v3f) => {
+    'kernel';
+    const offset = d.f32(2);
+    const bounds = d.vec3f();
+    const maxBounds = dimsf.sub(d.vec3f(1));
+
+    const px = std.textureLoad(
+      computeLayout.$.terrain,
+      d.vec3u(std.clamp(pos.add(d.vec3f(offset, 0, 0)), bounds, maxBounds)),
+    ).x;
+    const nx = std.textureLoad(
+      computeLayout.$.terrain,
+      d.vec3u(std.clamp(pos.add(d.vec3f(-offset, 0, 0)), bounds, maxBounds)),
+    ).x;
+    const py = std.textureLoad(
+      computeLayout.$.terrain,
+      d.vec3u(std.clamp(pos.add(d.vec3f(0, offset, 0)), bounds, maxBounds)),
+    ).x;
+    const ny = std.textureLoad(
+      computeLayout.$.terrain,
+      d.vec3u(std.clamp(pos.add(d.vec3f(0, -offset, 0)), bounds, maxBounds)),
+    ).x;
+    const pz = std.textureLoad(
+      computeLayout.$.terrain,
+      d.vec3u(std.clamp(pos.add(d.vec3f(0, 0, offset)), bounds, maxBounds)),
+    ).x;
+    const nz = std.textureLoad(
+      computeLayout.$.terrain,
+      d.vec3u(std.clamp(pos.add(d.vec3f(0, 0, -offset)), bounds, maxBounds)),
+    ).x;
+
+    const gradient = d.vec3f(px - nx, py - ny, pz - nz);
+
+    return std.select(
+      d.vec3f(0, 1, 0),
+      std.normalize(gradient),
+      std.length(gradient) > 0.001,
+    );
   };
 
   const sense3D = (pos: d.v3f, direction: d.v3f) => {
@@ -125,8 +176,15 @@ export function createMoldSim(root: TgpuRoot, volumeSize: number) {
 
       const weight = std.textureLoad(computeLayout.$.oldState, sensorPosInt).x;
 
-      weightedDir = weightedDir.add(sensorDir.mul(weight));
-      totalWeight = totalWeight + weight;
+      // Check if sensor position hits terrain
+      const terrainValue = std.textureLoad(
+        computeLayout.$.terrain,
+        sensorPosInt,
+      ).x;
+      const terrainPenalty = std.select(1.0, 0.01, terrainValue > 0.07);
+
+      weightedDir = weightedDir.add(sensorDir.mul(weight * terrainPenalty));
+      totalWeight = totalWeight + weight * terrainPenalty;
     }
 
     return SenseResult({ weightedDir, totalWeight });
@@ -164,9 +222,36 @@ export function createMoldSim(root: TgpuRoot, volumeSize: number) {
       direction = std.normalize(direction.add(randomOffset));
     }
 
-    const newPos = agent.position.add(
-      direction.mul(params.$.moveSpeed * params.$.deltaTime),
-    );
+    // Predictive collision detection - check ahead of agent
+    const moveDistance = params.$.moveSpeed * params.$.deltaTime;
+    const lookAheadDistance = moveDistance * 2.0;
+    const lookAheadPos = agent.position.add(direction.mul(lookAheadDistance));
+
+    const terrainValue = std.textureLoad(
+      computeLayout.$.terrain,
+      d.vec3u(std.clamp(lookAheadPos, d.vec3f(), dimsf.sub(d.vec3f(1)))),
+    ).x;
+
+    if (terrainValue > 0.07) {
+      const terrainNormal = getTerrainNormal(lookAheadPos, dimsf);
+      const reflectedDir = direction.sub(
+        terrainNormal.mul(2.0 * std.dot(direction, terrainNormal)),
+      );
+
+      const randomOffset = randf.inUnitSphere().mul(0.2);
+      direction = std.normalize(reflectedDir.add(randomOffset));
+    }
+
+    let newPos = agent.position.add(direction.mul(moveDistance));
+
+    const finalTerrainCheck = std.textureLoad(
+      computeLayout.$.terrain,
+      d.vec3u(std.clamp(newPos, d.vec3f(), dimsf.sub(d.vec3f(1)))),
+    ).x;
+    if (finalTerrainCheck > 0.07) {
+      const terrainNormal = getTerrainNormal(newPos, dimsf);
+      newPos = agent.position.add(terrainNormal.mul(1.0));
+    }
 
     const center = dimsf.div(2);
 
@@ -287,6 +372,7 @@ export function createMoldSim(root: TgpuRoot, volumeSize: number) {
     root.createBindGroup(computeLayout, {
       oldState: textures[i],
       newState: textures[1 - i],
+      terrain: terrainTexture,
     }),
   );
 
