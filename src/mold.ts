@@ -15,12 +15,13 @@ const BLUR_WORKGROUP_SIZE = [4, 4, 4];
 
 const RANDOM_DIRECTION_WEIGHT = 0.3;
 const CENTER_BIAS_WEIGHT = 0.7;
+const GRAVITY_STRENGTH = 2;
 
-const DEFAULT_MOVE_SPEED = 30.0;
-const DEFAULT_SENSOR_ANGLE = 0.5;
-const DEFAULT_SENSOR_DISTANCE = 9.0;
-const DEFAULT_TURN_SPEED = 10.0;
-const DEFAULT_EVAPORATION_RATE = 0.05;
+const DEFAULT_MOVE_SPEED = 50.0;
+const DEFAULT_SENSOR_ANGLE = 1;
+const DEFAULT_SENSOR_DISTANCE = 4.0;
+const DEFAULT_TURN_SPEED = 30.0;
+const DEFAULT_EVAPORATION_RATE = 0.04;
 
 const Agent = d.struct({
   position: d.vec3f,
@@ -34,6 +35,7 @@ const Params = d.struct({
   sensorDistance: d.f32,
   turnSpeed: d.f32,
   evaporationRate: d.f32,
+  gravityDir: d.vec3f,
 });
 
 export function createMoldSim(
@@ -66,6 +68,7 @@ export function createMoldSim(
     sensorDistance: DEFAULT_SENSOR_DISTANCE,
     turnSpeed: DEFAULT_TURN_SPEED,
     evaporationRate: DEFAULT_EVAPORATION_RATE,
+    gravityDir: d.vec3f(0, -1, 0),
   });
 
   const textures = [0, 1].map(() =>
@@ -242,6 +245,11 @@ export function createMoldSim(
       direction = std.normalize(reflectedDir.add(randomOffset));
     }
 
+    const gravityInfluence = params.$.gravityDir.mul(
+      GRAVITY_STRENGTH * params.$.deltaTime,
+    );
+    direction = std.normalize(direction.add(gravityInfluence));
+
     let newPos = agent.position.add(direction.mul(moveDistance));
 
     const finalTerrainCheck = std.textureLoad(
@@ -383,10 +391,10 @@ export function createMoldSim(
     get currentTexture() {
       return currentTexture;
     },
-    tick(world: World) {
+    tick(world: World, gravityDir: d.v3f) {
       const time = wf.getOrThrow(world, wf.Time);
       const deltaTime = time.deltaSeconds;
-      params.writePartial({ deltaTime });
+      params.writePartial({ deltaTime, gravityDir });
 
       blurPipeline
         .with(computeLayout, bindGroups[currentTexture])

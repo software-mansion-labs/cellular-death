@@ -4,7 +4,7 @@ import tgpu, { type TgpuRoot } from 'typegpu';
 import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import * as wf from 'wayfare';
-import { quatn } from 'wgpu-matrix';
+import { quatn, vec3n } from 'wgpu-matrix';
 import { createBoxMesh } from './boxMesh.ts';
 import { InputData } from './inputManager.ts';
 import { createMoldSim } from './mold.ts';
@@ -429,9 +429,6 @@ export function createTerrarium(root: TgpuRoot, world: World) {
 
   return {
     update() {
-      // Update terrarium logic here
-      sim.tick(world);
-
       const time = wf.getOrThrow(world, wf.Time);
 
       // biome-ignore lint/style/noNonNullAssertion: there's a camera
@@ -439,6 +436,8 @@ export function createTerrarium(root: TgpuRoot, world: World) {
       const cameraPos = wf.getOrThrow(camera, wf.TransformTrait).position;
 
       const inputData = wf.getOrThrow(world, InputData);
+
+      let localGravityDir = d.vec3f(0, -1, 0);
 
       world
         .query(Terrarium, wf.TransformTrait, wf.ExtraBindingTrait)
@@ -460,7 +459,17 @@ export function createTerrarium(root: TgpuRoot, world: World) {
             ang.x = inputData.dragDeltaY * 2;
             ang.y = inputData.dragDeltaX * 2;
           }
+
+          const worldGravity = vec3n.fromValues(0, -1, 0);
+          const invRotation = quatn.conjugate(transform.rotation);
+          localGravityDir = vec3n.transformQuat(
+            worldGravity,
+            invRotation,
+            d.vec3f(),
+          );
         });
+
+      sim.tick(world, localGravityDir);
     },
   };
 }
