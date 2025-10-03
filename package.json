@@ -23,7 +23,7 @@
     "nwjs-types": "^1.0.0",
     "tailwindcss": "^4.1.14",
     "typescript": "~5.8.3",
-    "unplugin-typegpu": "https://pkg.pr.new/software-mansion/TypeGPU/unplugin-typegpu@2e96c75eb3d2332c02c2aff0f191a55600248381",
+    "unplugin-typegpu": "https://pkg.pr.new/software-mansion/TypeGPU/unplugin-typegpu@5fb9a434e8c8b0287fce9e03e824a02f6599fb62",
     "vite": "^7.1.7"
   },
   "license": "MIT",
@@ -34,7 +34,8 @@
     "koota": "^0.5.1",
     "node": "^24.9.0",
     "typegpu": "https://pkg.pr.new/software-mansion/TypeGPU/typegpu@2e96c75eb3d2332c02c2aff0f191a55600248381",
-    "wayfare": "^0.3.0-alpha.5",
+    "wayfare": "^0.3.0-alpha.8",
+    "koota": "^0.5.1",
     "wgpu-matrix": "^3.4.0"
   }
 }

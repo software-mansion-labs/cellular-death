@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
@@ -7,7 +7,20 @@
         <title>Cellular Death</title>
     </head>
     <body>
-        <canvas id="canvas"><canvas>
+        <canvas id="canvas"></canvas>
         <script type="module" src="/src/main.ts"></script>
+        <div id="titleScreen">
+            <h1>Cellular Death</h1>
+            <button id="startButton">Begin the experiment</button>
+        </div>
+        <div id="menuButtons">
+            <button id="resetButton">
+                <img src="/assets/icons/refresh-svgrepo-com.svg" alt="Reset" draggable="false"/>
+            </button>
+            <button id="muteButton">
+                <img class="unmuted" src="/assets/icons/audio-svgrepo-com.svg" alt="Mute" draggable="false"/>
+                <img class="muted" src="/assets/icons/mute-svgrepo-com.svg" alt="Unmute" draggable="false"/>
+            </button>
+        </div>
     </body>
 </html>
