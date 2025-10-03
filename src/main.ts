@@ -1,4 +1,4 @@
-import "./style.css";
+import './style.css';
 
 import tgpu from 'typegpu';
 import * as wf from 'wayfare';
@@ -10,51 +10,51 @@ import { createSun } from './sun.ts';
 
 function initButtons() {
   // start button
-  const startButton = document.querySelector("#startButton");
+  const startButton = document.querySelector('#startButton');
 
-  startButton?.addEventListener("click", () => {
-    document.getElementById("titleScreen")?.classList.add("hidden");
+  startButton?.addEventListener('click', () => {
+    document.getElementById('titleScreen')?.classList.add('hidden');
   });
 
   // mute button
-  const muteButton = document.getElementById("muteButton");
-  const unmutedIcon = muteButton?.querySelector(".unmuted");
-  const mutedIcon = muteButton?.querySelector(".muted");
-  mutedIcon?.setAttribute("style", "display: none");
+  const muteButton = document.getElementById('muteButton');
+  const unmutedIcon = muteButton?.querySelector('.unmuted');
+  const mutedIcon = muteButton?.querySelector('.muted');
+  mutedIcon?.setAttribute('style', 'display: none');
 
   let isMuted = false;
 
-  muteButton?.addEventListener("click", () => {
+  muteButton?.addEventListener('click', () => {
     isMuted = !isMuted;
     if (isMuted) {
-      unmutedIcon?.setAttribute("style", "display: none");
-      mutedIcon?.setAttribute("style", "display: block");
+      unmutedIcon?.setAttribute('style', 'display: none');
+      mutedIcon?.setAttribute('style', 'display: block');
     } else {
-      unmutedIcon?.setAttribute("style", "display: block");
-      mutedIcon?.setAttribute("style", "display: none");
+      unmutedIcon?.setAttribute('style', 'display: block');
+      mutedIcon?.setAttribute('style', 'display: none');
     }
   });
 
-  muteButton?.addEventListener("click", () => {
-    console.log("Mute clicked");
+  muteButton?.addEventListener('click', () => {
+    console.log('Mute clicked');
   });
 
   // reset button
-  const resetButton = document.getElementById("resetButton");
+  const resetButton = document.getElementById('resetButton');
 
-  resetButton?.addEventListener("click", () => {
-    console.log("Reset clicked");
+  resetButton?.addEventListener('click', () => {
+    console.log('Reset clicked');
   });
 }
 
 async function initGame() {
   const root = await tgpu.init({
     device: {
-      optionalFeatures: ["float32-filterable"],
+      optionalFeatures: ['float32-filterable'],
     },
   });
-  const canvas = document.querySelector("canvas") as HTMLCanvasElement;
-  const context = canvas.getContext("webgpu") as GPUCanvasContext;
+  const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+  const context = canvas.getContext('webgpu') as GPUCanvasContext;
 
   const renderer = new wf.Renderer(root, canvas, context);
   const engine = new wf.Engine(root, renderer);
@@ -66,7 +66,7 @@ async function initGame() {
     renderer.updateViewport(canvas.width, canvas.height);
   };
   resizeCanvas(canvas);
-  window.addEventListener("resize", () => resizeCanvas(canvas));
+  window.addEventListener('resize', () => resizeCanvas(canvas));
 
   initButtons();
 
@@ -78,7 +78,7 @@ async function initGame() {
   const sun = createSun(root, engine);
 
   // Chamber
-  createChamber(root, world, sun);
+  const chamber = createChamber(root, world, sun);
 
   // Terrarium
   const terrarium = createTerrarium(root, world);
@@ -87,9 +87,10 @@ async function initGame() {
   const cameraRig = createCameraRig(world);
 
   engine.run(() => {
-    terrarium.update();
     cameraRig.update();
+    terrarium.update();
     sun.update();
+    chamber.update();
   });
 }
 

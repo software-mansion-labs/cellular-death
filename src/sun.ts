@@ -70,17 +70,17 @@ export function createSun(root: TgpuRoot, engine: wf.Engine): Sun {
 
   const orthographicConfig: wf.OrthographicConfig = {
     type: 'orthographic',
-    left: -18,
-    right: 18,
-    bottom: -18,
-    top: 18,
+    left: -25,
+    right: 25,
+    bottom: -25,
+    top: 25,
     near: 0.1,
-    far: 14,
+    far: 20,
     clearColor: [0, 0, 0, 1],
   };
 
-  const lightOrigin = d.vec3f(0, 10, 0);
-  const lightDir = std.normalize(d.vec3f(0.3, -1, 0.1));
+  const lightOrigin = d.vec3f(0, 16, 0);
+  const lightDir = std.normalize(d.vec3f(-0.3, -1, 0.1));
 
   const lightRotMat = mat4n.cameraAim(
     lightOrigin,
