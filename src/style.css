@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "TitleFont";
+  src: url("/assets/fonts/scriptina/SCRIPTIN.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
 html,
 body {
   margin: 0;
@@ -13,4 +20,44 @@ canvas {
   display: block;
   width: 100vw;
   height: 100vh;
+}
+
+#titleScreen {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  padding-top: 30vh;
+  color: white;
+  font-family: sans-serif;
+
+  opacity: 1;
+  transition: opacity 1s;
+  pointer-events: auto;
+}
+
+#titleScreen.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#titleScreen h1 {
+  font-family: "TitleFont", sans-serif;
+  font-size: 9rem;
+  margin-bottom: 100px;
+}
+
+#startButton {
+  font-size: 3rem;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
 }

@@ -34,6 +34,11 @@ async function initGame() {
   resizeCanvas(canvas);
   window.addEventListener('resize', () => resizeCanvas(canvas));
 
+  // Main menu dismiss
+  document.querySelector("#startButton")?.addEventListener("click", () => {
+    document.getElementById("titleScreen")?.classList.add("hidden");
+  });
+
   const world = engine.world;
 
   // Floor
