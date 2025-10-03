@@ -2,8 +2,24 @@ import { trait, type World } from 'koota';
 import * as wf from 'wayfare';
 
 export const InputData = trait(() => ({
+  /**
+   * The change in X position of the mouse or touch since the last frame.
+   * It's in units fraction of the canvas width. (1 = canvas width)
+   */
   dragDeltaX: 0,
+  /**
+   * The change in Y position of the mouse or touch since the last frame.
+   * It's in units fraction of the canvas height. (1 = canvas height)
+   */
   dragDeltaY: 0,
+  /**
+   * The X position of the mouse on hover. (0=left, 1=right)
+   */
+  mouseX: 0,
+  /**
+   * The Y position of the mouse on hover. (0=top, 1=bottom)
+   */
+  mouseY: 0,
   dragging: false,
 }));
 
@@ -21,13 +37,13 @@ export function createInputManager(world: World, canvas: HTMLCanvasElement) {
   });
 
   canvas.addEventListener('mousemove', (e) => {
+    input.mouseX = e.clientX / canvas.clientWidth;
+    input.mouseY = e.clientY / canvas.clientHeight;
+
     if (!input.dragging) return;
 
-    const deltaX = e.clientX - lastMouseX;
-    const deltaY = e.clientY - lastMouseY;
-
-    input.dragDeltaX = deltaX;
-    input.dragDeltaY = deltaY;
+    input.dragDeltaX = (e.clientX - lastMouseX) / canvas.clientWidth;
+    input.dragDeltaY = (e.clientY - lastMouseY) / canvas.clientHeight;
 
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
@@ -60,11 +76,10 @@ export function createInputManager(world: World, canvas: HTMLCanvasElement) {
       e.preventDefault();
       if (!input.dragging || e.touches.length !== 1) return;
 
-      const deltaX = e.touches[0].clientX - lastMouseX;
-      const deltaY = e.touches[0].clientY - lastMouseY;
-
-      input.dragDeltaX = deltaX;
-      input.dragDeltaY = deltaY;
+      input.dragDeltaX =
+        (e.touches[0].clientX - lastMouseX) / canvas.clientWidth;
+      input.dragDeltaY =
+        (e.touches[0].clientY - lastMouseY) / canvas.clientHeight;
 
       lastMouseX = e.touches[0].clientX;
       lastMouseY = e.touches[0].clientY;
