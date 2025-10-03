@@ -15,11 +15,11 @@ export const InputData = trait(() => ({
   /**
    * The X position of the mouse on hover. (0=left, 1=right)
    */
-  mouseX: 0,
+  mouseX: 0.5,
   /**
    * The Y position of the mouse on hover. (0=top, 1=bottom)
    */
-  mouseY: 0,
+  mouseY: 0.5,
   dragging: false,
 }));
 
@@ -55,6 +55,8 @@ export function createInputManager(world: World, canvas: HTMLCanvasElement) {
 
   canvas.addEventListener('mouseleave', () => {
     input.dragging = false;
+    input.mouseX = 0.5;
+    input.mouseY = 0.5;
   });
 
   canvas.addEventListener(

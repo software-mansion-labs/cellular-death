@@ -29,7 +29,7 @@
   "dependencies": {
     "@typegpu/noise": "https://pkg.pr.new/software-mansion/TypeGPU/@typegpu/noise@2e96c75eb3d2332c02c2aff0f191a55600248381",
     "typegpu": "https://pkg.pr.new/software-mansion/TypeGPU/typegpu@2e96c75eb3d2332c02c2aff0f191a55600248381",
-    "wayfare": "^0.3.0-alpha.5",
+    "wayfare": "^0.3.0-alpha.6",
     "koota": "^0.5.1",
     "wgpu-matrix": "^3.4.0"
   }
