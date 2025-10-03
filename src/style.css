@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "TitleFont";
+  src: url("/assets/fonts/scriptina/SCRIPTIN.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
 html,
 body {
   margin: 0;
@@ -41,8 +48,9 @@ canvas {
 }
 
 #titleScreen h1 {
+  font-family: "TitleFont", sans-serif;
   font-size: 9rem;
-  margin-bottom: 50px;
+  margin-bottom: 100px;
 }
 
 #startButton {
