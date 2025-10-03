@@ -57,6 +57,9 @@ export function createTerrarium(root: TgpuRoot, world: World) {
   const terrainWriteView = terrain.createView(
     d.textureStorage3d('r32float', 'write-only'),
   );
+  const terrainReadView = terrain.createView(
+    d.textureStorage3d('r32float', 'read-only'),
+  );
   const terrainSampled = terrain.createView();
 
   const initTerrain = tgpu['~unstable'].computeFn({
@@ -94,6 +97,7 @@ export function createTerrarium(root: TgpuRoot, world: World) {
       const Varying = {
         localPos: d.vec3f,
         cameraPos: d.vec3f,
+        localLightDir: d.vec3f,
       };
 
       const vertexFn = tgpu['~unstable'].vertexFn({
@@ -108,18 +112,24 @@ export function createTerrarium(root: TgpuRoot, world: World) {
         const worldPos = $$.modelMat.mul(d.vec4f(input.pos, 1));
         const pos = $$.viewProjMat.mul(worldPos);
 
+        const worldLightDir = d.vec3f(0, -1, 0);
+        const localLightDir = std.normalize(
+          $$.invModelMat.mul(d.vec4f(worldLightDir, 0)).xyz,
+        );
+
         return {
           pos,
           localPos: input.pos,
           cameraPos: $$.invModelMat.mul(d.vec4f(renderLayout.$.cameraPos, 1))
             .xyz,
+          localLightDir,
         };
       });
 
       const fragmentFn = tgpu['~unstable'].fragmentFn({
         in: { ...Varying },
         out: d.vec4f,
-      })(({ localPos, cameraPos }) => {
+      })(({ localPos, cameraPos, localLightDir }) => {
         // The local-space position of the camera (the near-clip plane to be exact).
         const near = cameraPos;
 
@@ -147,7 +157,7 @@ export function createTerrarium(root: TgpuRoot, world: World) {
         const slimeAlbedo = d.vec3f(0.57, 0.44, 0.96);
         const terrainAlbedo = d.vec3f(0.3, 0.24, 0.3);
 
-        const lightDir = std.normalize(d.vec3f(0.5, 0.8, 0.3));
+        const lightDir = localLightDir;
         const ambientLight = d.f32(0.3);
         const diffuseStrength = d.f32(0.7);
 
@@ -182,56 +192,111 @@ export function createTerrarium(root: TgpuRoot, world: World) {
             0,
           ).x;
 
-          if (terrainValue > 0.01) {
-            const gradientOffset = d.f32(5 / VOLUME_SIZE);
-            const texCoordMin = d.vec3f(0.0);
-            const texCoordMax = d.vec3f(1.0);
-
-            const texCoordX = std.clamp(
-              texCoord.add(d.vec3f(gradientOffset, 0, 0)),
-              texCoordMin,
-              texCoordMax,
-            );
-            const texCoordY = std.clamp(
-              texCoord.add(d.vec3f(0, gradientOffset, 0)),
-              texCoordMin,
-              texCoordMax,
-            );
-            const texCoordZ = std.clamp(
-              texCoord.add(d.vec3f(0, 0, gradientOffset)),
-              texCoordMin,
-              texCoordMax,
-            );
-
-            const terrainX = std.textureSampleLevel(
-              terrainSampled.$,
-              sampler,
-              texCoordX,
-              0,
-            ).x;
-            const terrainY = std.textureSampleLevel(
-              terrainSampled.$,
-              sampler,
-              texCoordY,
-              0,
-            ).x;
-            const terrainZ = std.textureSampleLevel(
-              terrainSampled.$,
-              sampler,
-              texCoordZ,
-              0,
-            ).x;
-
-            const terrainGradient = d.vec3f(
-              terrainX - terrainValue,
-              terrainY - terrainValue,
-              terrainZ - terrainValue,
-            );
-
-            const terrainGradientLength = std.length(terrainGradient);
+          if (terrainValue > 0.07) {
+            const edgeThreshold = d.f32(0.05);
             let terrainNormal = d.vec3f(0, 1, 0);
-            if (terrainGradientLength > 0.01) {
-              terrainNormal = std.normalize(terrainGradient);
+            let boxNormal = d.vec3f(0, 0, 0);
+            let edgeWeight = d.f32(0);
+
+            const distX = std.min(texCoord.x, 1.0 - texCoord.x);
+            const distY = std.min(texCoord.y, 1.0 - texCoord.y);
+            const distZ = std.min(texCoord.z, 1.0 - texCoord.z);
+
+            if (distX < edgeThreshold) {
+              const weight = 1.0 - distX / edgeThreshold;
+              const wallNormal = std.select(
+                d.vec3f(1, 0, 0),
+                d.vec3f(-1, 0, 0),
+                texCoord.x > 0.5,
+              );
+              boxNormal = boxNormal.add(wallNormal.mul(weight));
+              edgeWeight = edgeWeight + weight;
+            }
+            if (distY < edgeThreshold) {
+              const weight = 1.0 - distY / edgeThreshold;
+              const wallNormal = std.select(
+                d.vec3f(0, 1, 0),
+                d.vec3f(0, -1, 0),
+                texCoord.y > 0.5,
+              );
+              boxNormal = boxNormal.add(wallNormal.mul(weight));
+              edgeWeight = edgeWeight + weight;
+            }
+            if (distZ < edgeThreshold) {
+              const weight = 1.0 - distZ / edgeThreshold;
+              const wallNormal = std.select(
+                d.vec3f(0, 0, 1),
+                d.vec3f(0, 0, -1),
+                texCoord.z > 0.5,
+              );
+              boxNormal = boxNormal.add(wallNormal.mul(weight));
+              edgeWeight = edgeWeight + weight;
+            }
+
+            if (edgeWeight > 0) {
+              boxNormal = std.normalize(boxNormal);
+            }
+
+            let gradientNormal = d.vec3f(0, 1, 0);
+            {
+              const gradientOffset = d.f32(1.0 / VOLUME_SIZE);
+              const texCoordMin = d.vec3f(0.0);
+              const texCoordMax = d.vec3f(1.0);
+
+              const texCoordX = std.clamp(
+                texCoord.add(d.vec3f(gradientOffset, 0, 0)),
+                texCoordMin,
+                texCoordMax,
+              );
+              const texCoordY = std.clamp(
+                texCoord.add(d.vec3f(0, gradientOffset, 0)),
+                texCoordMin,
+                texCoordMax,
+              );
+              const texCoordZ = std.clamp(
+                texCoord.add(d.vec3f(0, 0, gradientOffset)),
+                texCoordMin,
+                texCoordMax,
+              );
+
+              const terrainX = std.textureSampleLevel(
+                terrainSampled.$,
+                sampler,
+                texCoordX,
+                0,
+              ).x;
+              const terrainY = std.textureSampleLevel(
+                terrainSampled.$,
+                sampler,
+                texCoordY,
+                0,
+              ).x;
+              const terrainZ = std.textureSampleLevel(
+                terrainSampled.$,
+                sampler,
+                texCoordZ,
+                0,
+              ).x;
+
+              const terrainGradient = d.vec3f(
+                terrainX - terrainValue,
+                terrainY - terrainValue,
+                terrainZ - terrainValue,
+              );
+
+              const terrainGradientLength = std.length(terrainGradient);
+              if (terrainGradientLength > 0.001) {
+                gradientNormal = std.normalize(terrainGradient);
+              }
+            }
+
+            if (edgeWeight > 0) {
+              const blendFactor = std.saturate(edgeWeight);
+              terrainNormal = std.normalize(
+                std.mix(gradientNormal, boxNormal, blendFactor),
+              );
+            } else {
+              terrainNormal = gradientNormal;
             }
 
             const terrainDiffuse = std.max(
@@ -342,7 +407,7 @@ export function createTerrarium(root: TgpuRoot, world: World) {
     },
   });
 
-  const sim = createMoldSim(root, VOLUME_SIZE);
+  const sim = createMoldSim(root, VOLUME_SIZE, terrainReadView);
   const cameraPosUniform = root.createUniform(d.vec3f);
 
   const renderBindGroups = [0, 1].map((i) =>

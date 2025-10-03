@@ -1,7 +1,6 @@
-import './style.css';
+import "./style.css";
 
 import tgpu from 'typegpu';
-import * as d from 'typegpu/data';
 import * as wf from 'wayfare';
 import { createCameraRig } from './cameraRig.ts';
 import { createChamber } from './chamber.ts';
@@ -9,19 +8,53 @@ import { createInputManager } from './inputManager.ts';
 import { createTerrarium } from './terrarium.ts';
 import { createSun } from './sun.ts';
 
-const floorMesh = wf.createRectangleMesh({
-  width: d.vec3f(10, 0, 0),
-  height: d.vec3f(0, 0, -10),
-});
+function initButtons() {
+  // start button
+  const startButton = document.querySelector("#startButton");
+
+  startButton?.addEventListener("click", () => {
+    document.getElementById("titleScreen")?.classList.add("hidden");
+  });
+
+  // mute button
+  const muteButton = document.getElementById("muteButton");
+  const unmutedIcon = muteButton?.querySelector(".unmuted");
+  const mutedIcon = muteButton?.querySelector(".muted");
+  mutedIcon?.setAttribute("style", "display: none");
+
+  let isMuted = false;
+
+  muteButton?.addEventListener("click", () => {
+    isMuted = !isMuted;
+    if (isMuted) {
+      unmutedIcon?.setAttribute("style", "display: none");
+      mutedIcon?.setAttribute("style", "display: block");
+    } else {
+      unmutedIcon?.setAttribute("style", "display: block");
+      mutedIcon?.setAttribute("style", "display: none");
+    }
+  });
+
+  muteButton?.addEventListener("click", () => {
+    console.log("Mute clicked");
+  });
+
+  // reset button
+  const resetButton = document.getElementById("resetButton");
+
+  resetButton?.addEventListener("click", () => {
+    console.log("Reset clicked");
+  });
+}
 
 async function initGame() {
   const root = await tgpu.init({
     device: {
-      optionalFeatures: ['float32-filterable'],
+      optionalFeatures: ["float32-filterable"],
     },
   });
-  const canvas = document.querySelector('canvas') as HTMLCanvasElement;
-  const context = canvas.getContext('webgpu') as GPUCanvasContext;
+  const canvas = document.querySelector("canvas") as HTMLCanvasElement;
+  const context = canvas.getContext("webgpu") as GPUCanvasContext;
 
   const renderer = new wf.Renderer(root, canvas, context);
   const engine = new wf.Engine(root, renderer);
@@ -33,21 +66,11 @@ async function initGame() {
     renderer.updateViewport(canvas.width, canvas.height);
   };
   resizeCanvas(canvas);
-  window.addEventListener('resize', () => resizeCanvas(canvas));
+  window.addEventListener("resize", () => resizeCanvas(canvas));
 
-  // Main menu dismiss
-  document.querySelector('#startButton')?.addEventListener('click', () => {
-    document.getElementById('titleScreen')?.classList.add('hidden');
-  });
+  initButtons();
 
   const world = engine.world;
-
-  // Floor
-  world.spawn(
-    wf.MeshTrait(floorMesh),
-    wf.TransformTrait({ position: d.vec3f(0, -5, -10) }),
-    ...wf.BlinnPhongMaterial.Bundle({ albedo: d.vec3f(0.7, 0.5, 0.3) }),
-  );
 
   // Attaches input controls to the canvas
   createInputManager(world, canvas);

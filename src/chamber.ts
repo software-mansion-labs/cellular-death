@@ -125,7 +125,7 @@ export function createChamber(root: TgpuRoot, world: World, sun: Sun) {
 
   world.spawn(
     wf.MeshTrait(chamberMesh),
-    wf.TransformTrait({ position: d.vec3f(0, 0, 0), scale: d.vec3f(0.5) }),
+    wf.TransformTrait({ position: d.vec3f(0, 0, 0), scale: d.vec3f(1) }),
     ...ChamberMaterial.Bundle({ albedo: d.vec3f(1) }),
   );
 }
