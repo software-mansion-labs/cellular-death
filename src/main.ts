@@ -20,6 +20,10 @@ async function initGame() {
   const canvas = document.querySelector('canvas') as HTMLCanvasElement;
   const context = canvas.getContext('webgpu') as GPUCanvasContext;
 
+  document.querySelector("#startButton")?.addEventListener("click", () => {
+    document.getElementById("titleScreen")!.style.display = "none";
+  });
+
   const renderer = new wf.Renderer(root, canvas, context);
   const engine = new wf.Engine(root, renderer);
 
