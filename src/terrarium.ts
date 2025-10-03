@@ -7,6 +7,7 @@ import { quatn } from 'wgpu-matrix';
 import { createBoxMesh } from './boxMesh.ts';
 import { createMoldSim } from './mold.ts';
 import { InputData } from './inputManager.ts';
+import { sphereFragment, sphereVertex } from './water/render/sphere.ts';
 
 const VOLUME_SIZE = 128;
 const RAYMARCH_STEPS = 128;
@@ -158,6 +159,33 @@ export function createTerrarium(root: TgpuRoot, world: World) {
     },
   });
 
+
+
+
+const WaterMaterial = wf.createMaterial({
+  vertexLayout: wf.POS_NORMAL_UV,
+  createPipeline({ root, format, $$ }) {
+    const Varying = {
+      localPos: d.vec3f,
+      cameraPos: d.vec3f,
+    };
+
+    return {
+      pipeline: root['~unstable']
+        .withVertex(sphereVertex, wf.POS_NORMAL_UV.attrib)
+        .withFragment(sphereFragment, { fragColor: { format } })
+        .withPrimitive({ topology: 'triangle-list', cullMode: 'none' })
+        .withDepthStencil({
+          depthWriteEnabled: true,
+          depthCompare: 'less',
+          format: 'depth24plus',
+        })
+        .createPipeline(),
+    };
+  },
+});
+
+
   const sim = createMoldSim(root, VOLUME_SIZE);
   const cameraPosUniform = root.createUniform(d.vec3f);
 
@@ -175,6 +203,12 @@ export function createTerrarium(root: TgpuRoot, world: World) {
     ...MoldMaterial.Bundle(),
     wf.TransformTrait({ position: d.vec3f(0, 0, -1.5) }),
     wf.ExtraBindingTrait({ group: undefined }),
+  );
+
+  world.spawn(
+    wf.MeshTrait(boxMesh),
+    ...WaterMaterial.Bundle(),
+    wf.TransformTrait({ position: d.vec3f(0, 0, -1.5) }),
   );
 
   return {

@@ -52,7 +52,7 @@ export const valueToColor = tgpu.fn(
 
 
 
-export const vertexShader = tgpu['~unstable'].vertexFn({
+export const sphereVertex = tgpu['~unstable'].vertexFn({
 	in: {
 		vertexIndex: d.builtin.vertexIndex,
 		instanceIndex: d.builtin.instanceIndex,
@@ -95,7 +95,7 @@ export const renderLayout = tgpu.bindGroupLayout({
 	uniforms: { uniform: RenderUniforms },
 });
 
-export const fragmentShader = tgpu['~unstable'].fragmentFn({
+export const sphereFragment = tgpu['~unstable'].fragmentFn({
 	in: {
 		uv: d.vec2f,
 		viewPosition: d.vec3f,
