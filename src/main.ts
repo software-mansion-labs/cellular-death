@@ -9,6 +9,8 @@ import { createInputManager } from './inputManager.ts';
 import { LEVELS } from './levels.ts';
 import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
+import { getDialogBox } from './dialogBox.ts';
+import { level1dialogue } from './dialogue.ts';
 
 let showingTitleScreen = true;
 
@@ -67,6 +69,7 @@ function initButtons() {
       clickSfx.start();
       clickSfx.onstop = () => backgroudMusic.start();
     });
+    getDialogBox().enqueueMessage(...level1dialogue)
   });
 
   // Pause menu
@@ -196,6 +199,7 @@ async function initGame() {
     terrarium.update();
     sun.update();
     chamber.update();
+    getDialogBox().update();
 
     if (!levelInitialized) {
       levelInitialized = true;
