@@ -5,12 +5,12 @@ import tgpu from 'typegpu';
 import * as wf from 'wayfare';
 import { createCameraRig } from './cameraRig.ts';
 import { createChamber } from './chamber.ts';
+import { getDialogBox } from './dialogBox.ts';
+import { level1dialogue } from './dialogue.ts';
 import { createInputManager } from './inputManager.ts';
 import { LEVELS } from './levels.ts';
 import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
-import { getDialogBox } from './dialogBox.ts';
-import { level1dialogue } from './dialogue.ts';
 
 let showingTitleScreen = true;
 
@@ -69,7 +69,7 @@ function initButtons() {
       clickSfx.start();
       clickSfx.onstop = () => backgroudMusic.start();
     });
-    getDialogBox().enqueueMessage(...level1dialogue)
+    getDialogBox().enqueueMessage(...level1dialogue);
   });
 
   // Pause menu

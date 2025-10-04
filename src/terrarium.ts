@@ -376,16 +376,37 @@ export function createTerrarium(root: TgpuRoot, world: World) {
             const diffuse = std.max(std.dot(normal, lightDir), 0.0);
             const lighting = ambientLight + diffuseStrength * diffuse;
 
-            const youngColor = d.vec3f(1, 0.5, 0.4);
-            const oldColor = d.vec3f(0.1, 0.2, 1.0);
-            const slimeAlbedo = std.mix(
-              youngColor,
-              oldColor,
-              lifetimeNormalized,
+            const clampedLifetime = std.min(lifetimeNormalized, 1.0);
+            const deathIntensity = std.saturate(
+              (lifetimeNormalized - 1.0) * 2.0,
             );
 
+            const t1 = std.smoothstep(0.0, 0.4, clampedLifetime);
+            const t2 = std.smoothstep(0.4, 0.85, clampedLifetime);
+            const t3 = std.smoothstep(0.85, 1.0, clampedLifetime);
+
+            const green = d.vec3f(0.2, 1.0, 0.4);
+            const yellow = d.vec3f(1.0, 0.85, 0.0);
+            const orange = d.vec3f(0.9, 0.4, 0.1);
+            const darkRed = d.vec3f(0.4, 0.0, 0.0);
+            const brightRed = d.vec3f(1.0, 0.1, 0.05);
+
+            const c1 = std.mix(green, yellow, t1);
+            const c2 = std.mix(c1, orange, t2);
+            const baseColor = std.mix(c2, darkRed, t3);
+
+            const deathPulse = std.sin(renderLayout.$.time * 4.0) * 0.15 + 0.85;
+            const slimeAlbedo = std.mix(
+              baseColor,
+              brightRed.mul(deathPulse),
+              deathIntensity,
+            );
+
+            const emission =
+              (1.0 - clampedLifetime) * 0.35 + deathIntensity * 0.6;
+
             const alphaSrc = 1 - std.exp(-sigmaT * density * stepSize);
-            const litColor = slimeAlbedo.mul(lighting);
+            const litColor = slimeAlbedo.mul(lighting + emission);
             const contrib = litColor.mul(alphaSrc);
 
             accum = accum.add(contrib.mul(transmittance));
