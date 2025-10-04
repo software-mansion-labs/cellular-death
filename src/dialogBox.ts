@@ -8,8 +8,8 @@ export function getDialogBox() {
 }
 
 export interface DialogMessage {
-  message: string,
-  speed: number, // how many frames does displaying each character take?
+  message: string;
+  speed: number; // how many frames does displaying each character take?
 }
 
 class MessageTicker {
@@ -18,8 +18,8 @@ class MessageTicker {
 
   #charCount: number;
   #timeUntilNextChar: number;
-  
-  constructor({message, speed} : DialogMessage) {
+
+  constructor({ message, speed }: DialogMessage) {
     this.#message = message;
     this.#speed = speed;
     this.#charCount = 0;
@@ -66,15 +66,24 @@ class DialogBox {
   }
 
   update() {
-    const message = this.#tickAndGetCurrentMessage();
+    const dialogElement = document.getElementById("dialogBox");
+    if (!dialogElement) {
+      throw new Error("Dialog box not found!");
+    }
+    const opacity = Number.parseFloat(window.getComputedStyle(dialogElement).opacity);
 
-    if (!message) {
+    if (opacity < 1 && dialogElement.dataset.state === "visible") {
+      // currently fading in
+      // spaghetti, but oh well.
       return;
     }
 
-    const dialogElement = document.getElementById('dialogBox');
-    if (dialogElement) {
-      dialogElement.innerText = message;
+    const message = this.#tickAndGetCurrentMessage();
+    if (message === undefined) {
+      dialogElement.dataset.state = "hidden";
+      return;
     }
+    dialogElement.dataset.state = "visible";
+    dialogElement.innerText = message;
   }
 }

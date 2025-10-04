@@ -78,4 +78,10 @@ canvas {
   text-align: left;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   z-index: 1000;
+  transition: opacity 1s ease;
+}
+
+#dialogBox[data-state="hidden"] {
+  opacity: 0;
+  pointer-events: none;
 }
