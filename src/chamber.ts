@@ -8,9 +8,9 @@ import chamberUrl from './assets/chamber.obj?url';
 import type { Sun } from './sun';
 
 const fogStart = 1;
-const fogEnd = 20;
+const fogEnd = 25;
 const volumetricSteps = 32;
-const fogColor = d.vec3f(0.5, 0.5, 0.5);
+const fogColor = d.vec3f(0.4, 0.4, 0.55);
 const chamberMesh = await wf.meshAsset({ url: chamberUrl }).preload();
 
 const layout = tgpu
