@@ -12,6 +12,11 @@ import * as Tone from 'tone';
 let showingTitleScreen = true;
 
 function initButtons() {
+  // sound and music
+  const clickSfx = new Tone.Player("assets/sfx/ambient-snare.mp3").toDestination();
+  const backgroudMusic =  new Tone.Player("assets/sfx/background-music.mp3").toDestination();
+  backgroudMusic.loop = true;
+
   // biome-ignore lint/style/noNonNullAssertion: it's fine
   const titleScreen = document.getElementById('titleScreen')!;
   if (!titleScreen) throw new Error('titleScreen not found');
@@ -39,13 +44,9 @@ function initButtons() {
       showingTitleScreen = true;
       updateUI();
     }
+  });
+
   // start button
-  const startButton = document.querySelector("#startButton");
-
-  const clickSfx = new Tone.Player("assets/sfx/ambient-snare.mp3").toDestination();
-  const backgroudMusic =  new Tone.Player("assets/sfx/background-music.mp3").toDestination();
-  backgroudMusic.loop = true;
-
   startButton?.addEventListener("click", async () => {
     document.getElementById("titleScreen")?.classList.add("hidden");
 
