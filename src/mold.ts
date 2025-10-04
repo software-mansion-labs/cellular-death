@@ -11,12 +11,15 @@ const BLUR_WORKGROUP_SIZE = [4, 4, 4];
 
 const RANDOM_DIRECTION_WEIGHT = 0.3;
 const CENTER_BIAS_WEIGHT = 0.7;
-const GRAVITY_STRENGTH = 2;
+const GRAVITY_STRENGTH = 3;
 
 const INACTIVE_POSITION = d.vec3f(-9999, -9999, -9999);
 const DEATH_TIME_THRESHOLD = 3.0;
 const DENSITY_CHECK_THRESHOLD = 0.01;
-const MAX_LIFETIME = 30.0;
+const MAX_LIFETIME = 5.0;
+const GOAL_CHECK_RADIUS = 5.0;
+const GOAL_DENSITY_THRESHOLD = 100.0;
+const RAPID_AGING_MULTIPLIER = 5.0;
 
 const DEFAULT_MOVE_SPEED = 50.0;
 const DEFAULT_SENSOR_ANGLE = 1;
@@ -40,6 +43,7 @@ const Params = d.struct({
   turnSpeed: d.f32,
   evaporationRate: d.f32,
   gravityDir: d.vec3f,
+  agingMultiplier: d.f32,
 });
 
 const SpawnerConfig = d.struct({
@@ -53,6 +57,11 @@ const SpawnRange = d.struct({
   endIndex: d.u32,
 });
 
+const GoalConfig = d.struct({
+  position: d.vec3f,
+  reached: d.u32,
+});
+
 export function createMoldSim(
   root: TgpuRoot,
   volumeSize: number,
@@ -64,6 +73,7 @@ export function createMoldSim(
     spawnRate?: number;
     targetCount?: number;
   },
+  goalPosition?: d.v3f,
 ) {
   const resolution = d.vec3f(volumeSize);
 
@@ -72,10 +82,17 @@ export function createMoldSim(
   const spawnPoint = spawnerConfig?.spawnPoint ?? resolution.div(2);
   const spawnRate = spawnerConfig?.spawnRate ?? 10000;
   const targetCount = spawnerConfig?.targetCount ?? NUM_AGENTS;
+  const goalPos =
+    goalPosition ?? d.vec3f(volumeSize / 2, volumeSize - 10, volumeSize / 2);
 
   const spawnRange = root.createUniform(SpawnRange, {
     startIndex: 0,
     endIndex: 0,
+  });
+
+  const goal = root.createMutable(GoalConfig, {
+    position: goalPos,
+    reached: 0,
   });
 
   const params = root.createUniform(Params, {
@@ -86,6 +103,7 @@ export function createMoldSim(
     turnSpeed: DEFAULT_TURN_SPEED,
     evaporationRate: DEFAULT_EVAPORATION_RATE,
     gravityDir: d.vec3f(0, -1, 0),
+    agingMultiplier: 1.0,
   });
 
   const spawner = root.createUniform(SpawnerConfig, {
@@ -96,6 +114,7 @@ export function createMoldSim(
 
   let activeAgentCount = 0;
   let spawnAccumulator = 0;
+  let goalReached = false;
 
   const textures = [0, 1].map(() =>
     root['~unstable']
@@ -409,7 +428,8 @@ export function createMoldSim(
     const oldLifetime = oldStateVec.y;
 
     let newTimeSinceContact = agent.timeSinceContact + params.$.deltaTime;
-    const newTotalLifetime = agent.totalLifetime + params.$.deltaTime;
+    const newTotalLifetime =
+      agent.totalLifetime + params.$.deltaTime * params.$.agingMultiplier;
 
     if (oldDensity > DENSITY_CHECK_THRESHOLD) {
       newTimeSinceContact = 0;
@@ -499,6 +519,51 @@ export function createMoldSim(
     );
   });
 
+  const goalCheckLayout = tgpu.bindGroupLayout({
+    state: { storageTexture: d.textureStorage3d('rg32float', 'read-only') },
+  });
+
+  const checkGoal = tgpu['~unstable'].computeFn({
+    in: { gid: d.builtin.globalInvocationId },
+    workgroupSize: [1, 1, 1],
+  })(({ gid }) => {
+    if (gid.x > 0 || gid.y > 0 || gid.z > 0) return;
+    if (goal.$.reached > 0) return;
+
+    const goalPos = goal.$.position;
+    const radius = d.f32(GOAL_CHECK_RADIUS);
+    let totalDensity = d.f32(0);
+    let sampleCount = d.f32(0);
+
+    const startX = d.u32(std.max(goalPos.x - radius, 0));
+    const endX = d.u32(std.min(goalPos.x + radius, resolution.x - 1));
+    const startY = d.u32(std.max(goalPos.y - radius, 0));
+    const endY = d.u32(std.min(goalPos.y + radius, resolution.y - 1));
+    const startZ = d.u32(std.max(goalPos.z - radius, 0));
+    const endZ = d.u32(std.min(goalPos.z + radius, resolution.z - 1));
+
+    for (let x = startX; x <= endX; x = x + 1) {
+      for (let y = startY; y <= endY; y = y + 1) {
+        for (let z = startZ; z <= endZ; z = z + 1) {
+          const pos = d.vec3f(d.f32(x), d.f32(y), d.f32(z));
+          const dist = std.length(pos.sub(goalPos));
+          if (dist <= radius) {
+            const value = std.textureLoad(
+              goalCheckLayout.$.state,
+              d.vec3u(x, y, z),
+            );
+            totalDensity = totalDensity + value.x;
+            sampleCount = sampleCount + 1;
+          }
+        }
+      }
+    }
+
+    if (sampleCount > 0 && totalDensity >= GOAL_DENSITY_THRESHOLD) {
+      goal.$.reached = 1;
+    }
+  });
+
   const initPipeline = root['~unstable']
     .withCompute(initAgents)
     .createPipeline();
@@ -517,11 +582,21 @@ export function createMoldSim(
 
   const blurPipeline = root['~unstable'].withCompute(blur).createPipeline();
 
+  const checkGoalPipeline = root['~unstable']
+    .withCompute(checkGoal)
+    .createPipeline();
+
   const bindGroups = [0, 1].map((i) =>
     root.createBindGroup(computeLayout, {
       oldState: textures[i],
       newState: textures[1 - i],
       terrain: terrainTexture,
+    }),
+  );
+
+  const goalCheckBindGroups = [0, 1].map((i) =>
+    root.createBindGroup(goalCheckLayout, {
+      state: textures[i],
     }),
   );
 
@@ -538,10 +613,19 @@ export function createMoldSim(
     get activeAgentCount() {
       return activeAgentCount;
     },
+    get goalReached() {
+      return goalReached;
+    },
+    goalPosition: goalPos,
     tick(world: World, gravityDir: d.v3f) {
       const time = wf.getOrThrow(world, wf.Time);
       const deltaTime = time.deltaSeconds;
-      params.writePartial({ deltaTime, gravityDir });
+
+      const agingMultiplier = wf.Input.isKeyDown('KeyD')
+        ? RAPID_AGING_MULTIPLIER
+        : 1.0;
+
+      params.writePartial({ deltaTime, gravityDir, agingMultiplier });
 
       if (activeAgentCount < targetCount) {
         spawnAccumulator += deltaTime * spawnRate;
@@ -591,7 +675,20 @@ export function createMoldSim(
         );
       }
 
-      root['~unstable'].flush();
+      if (!goalReached) {
+        checkGoalPipeline
+          .with(goalCheckLayout, goalCheckBindGroups[currentTexture])
+          .dispatchWorkgroups(1, 1, 1);
+
+        goal.read().then((data) => {
+          if (data.reached > 0) {
+            goalReached = true;
+            console.log(
+              'Goal reached! Slime density threshold met at goal position.',
+            );
+          }
+        });
+      }
 
       currentTexture = 1 - currentTexture;
     },

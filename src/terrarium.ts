@@ -8,12 +8,19 @@ import { quatn, vec3n } from 'wgpu-matrix';
 import { createBoxMesh } from './boxMesh.ts';
 import { InputData } from './inputManager.ts';
 import { createMoldSim } from './mold.ts';
+import { createSphereMesh } from './sphereMesh.ts';
 
 const VOLUME_SIZE = 128;
 const RAYMARCH_STEPS = 256;
 const DENSITY_MULTIPLIER = 20;
 const HALO_COLOR = d.vec3f(1, 1, 1);
+const GOAL_POSITION = d.vec3f(
+  VOLUME_SIZE / 2,
+  VOLUME_SIZE - 10,
+  VOLUME_SIZE / 2,
+);
 const boxMesh = createBoxMesh(0.5, 0.5, 0.5);
+const sphereMesh = createSphereMesh(0.05, 12, 8);
 
 const Terrarium = trait({
   angularMomentum: () => d.vec2f(),
@@ -450,7 +457,7 @@ export function createTerrarium(root: TgpuRoot, world: World) {
       const fragmentFn = tgpu['~unstable'].fragmentFn({
         in: Varying,
         out: d.vec4f,
-      })((input) => {
+      })(() => {
         const time = renderLayout.$.time;
         const alpha = (1 - std.fract(time)) * 0.5;
         return d.vec4f(HALO_COLOR, 1).mul(alpha);
@@ -524,11 +531,17 @@ export function createTerrarium(root: TgpuRoot, world: World) {
     },
   });
 
-  const sim = createMoldSim(root, VOLUME_SIZE, terrainReadView, {
-    spawnPoint: d.vec3f(VOLUME_SIZE / 2, 0, VOLUME_SIZE / 2),
-    spawnRate: 1_000,
-    targetCount: 100_000,
-  });
+  const sim = createMoldSim(
+    root,
+    VOLUME_SIZE,
+    terrainReadView,
+    {
+      spawnPoint: d.vec3f(VOLUME_SIZE / 2, 0, VOLUME_SIZE / 2),
+      spawnRate: 5_000,
+      targetCount: 100_000,
+    },
+    GOAL_POSITION,
+  );
   const timeUniform = root.createUniform(d.f32);
   const cameraPosUniform = root.createUniform(d.vec3f);
 
@@ -572,6 +585,24 @@ export function createTerrarium(root: TgpuRoot, world: World) {
   wf.connectAsChild(terrarium, halo);
   wf.connectAsChild(terrarium, bg);
   wf.connectAsChild(terrarium, volume);
+
+  // Goal sphere - positioned in local coordinates relative to the volume
+  const goalLocalPos = d.vec3f(
+    sim.goalPosition.x / VOLUME_SIZE - 0.5,
+    sim.goalPosition.y / VOLUME_SIZE - 0.5,
+    sim.goalPosition.z / VOLUME_SIZE - 0.5,
+  );
+
+  const goalSphere = world.spawn(
+    wf.MeshTrait(sphereMesh),
+    wf.TransformTrait({
+      position: goalLocalPos,
+      scale: d.vec3f(1),
+    }),
+    ...wf.BlinnPhongMaterial.Bundle({ albedo: d.vec3f(0, 0, 0) }),
+  );
+
+  wf.connectAsChild(terrarium, goalSphere);
 
   return {
     update() {
