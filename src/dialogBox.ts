@@ -72,6 +72,9 @@ class DialogBox {
       return;
     }
 
-    console.log(message);
+    const dialogElement = document.getElementById('dialogBox');
+    if (dialogElement) {
+      dialogElement.innerText = message;
+    }
   }
 }
