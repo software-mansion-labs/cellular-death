@@ -36,19 +36,6 @@ function initButtons() {
   startButton.addEventListener('click', () => {
     showingTitleScreen = false;
     updateUI();
-  });
-
-  // Pause menu
-  document.addEventListener('keydown', (event) => {
-    if (event.code === 'Escape') {
-      showingTitleScreen = true;
-      updateUI();
-    }
-  });
-
-  // start button
-  startButton?.addEventListener("click", async () => {
-    document.getElementById("titleScreen")?.classList.add("hidden");
 
     // setup Tone
     Tone.start();
@@ -58,6 +45,15 @@ function initButtons() {
       clickSfx.start(); 
       clickSfx.onstop = () => backgroudMusic.start();
     } );
+
+  });
+
+  // Pause menu
+  document.addEventListener('keydown', (event) => {
+    if (event.code === 'Escape') {
+      showingTitleScreen = true;
+      updateUI();
+    }
   });
 
   // mute button
