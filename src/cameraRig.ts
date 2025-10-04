@@ -20,12 +20,12 @@ export function createCameraRig(world: World) {
     GameCamera(),
     wf.PerspectiveCamera({
       fov: 70,
-      clearColor: d.vec4f(0.1, 0.1, 0.4, 1),
+      clearColor: d.vec4f(1),
       near: 0.1,
       far: 100,
     }),
     wf.ActiveCameraTag,
-    wf.TransformTrait({ position: d.vec3f(0, 0, 0) }),
+    wf.TransformTrait({ position: d.vec3f(0, 0, 2) }),
   );
 
   return {

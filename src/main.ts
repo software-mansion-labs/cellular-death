@@ -6,6 +6,46 @@ import { createCameraRig } from './cameraRig.ts';
 import { createChamber } from './chamber.ts';
 import { createInputManager } from './inputManager.ts';
 import { createTerrarium } from './terrarium.ts';
+import { createSun } from './sun.ts';
+
+function initButtons() {
+  // start button
+  const startButton = document.querySelector('#startButton');
+
+  startButton?.addEventListener('click', () => {
+    document.getElementById('titleScreen')?.classList.add('hidden');
+  });
+
+  // mute button
+  const muteButton = document.getElementById('muteButton');
+  const unmutedIcon = muteButton?.querySelector('.unmuted');
+  const mutedIcon = muteButton?.querySelector('.muted');
+  mutedIcon?.setAttribute('style', 'display: none');
+
+  let isMuted = false;
+
+  muteButton?.addEventListener('click', () => {
+    isMuted = !isMuted;
+    if (isMuted) {
+      unmutedIcon?.setAttribute('style', 'display: none');
+      mutedIcon?.setAttribute('style', 'display: block');
+    } else {
+      unmutedIcon?.setAttribute('style', 'display: block');
+      mutedIcon?.setAttribute('style', 'display: none');
+    }
+  });
+
+  muteButton?.addEventListener('click', () => {
+    console.log('Mute clicked');
+  });
+
+  // reset button
+  const resetButton = document.getElementById('resetButton');
+
+  resetButton?.addEventListener('click', () => {
+    console.log('Reset clicked');
+  });
+}
 
 async function initGame() {
   const root = await tgpu.init({
@@ -28,18 +68,17 @@ async function initGame() {
   resizeCanvas(canvas);
   window.addEventListener('resize', () => resizeCanvas(canvas));
 
-  // Main menu dismiss
-  document.querySelector('#startButton')?.addEventListener('click', () => {
-    document.getElementById('titleScreen')?.classList.add('hidden');
-  });
+  initButtons();
 
   const world = engine.world;
 
   // Attaches input controls to the canvas
   createInputManager(world, canvas);
 
+  const sun = createSun(root, engine);
+
   // Chamber
-  createChamber(world);
+  const chamber = createChamber(root, world, sun);
 
   // Terrarium
   const terrarium = createTerrarium(root, world);
@@ -48,8 +87,10 @@ async function initGame() {
   const cameraRig = createCameraRig(world);
 
   engine.run(() => {
-    terrarium.update();
     cameraRig.update();
+    terrarium.update();
+    sun.update();
+    chamber.update();
   });
 }
 

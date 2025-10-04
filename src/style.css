@@ -62,3 +62,24 @@ canvas {
   color: white;
   cursor: pointer;
 }
+
+#menuButtons {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 10px;
+}
+
+#menuButtons button {
+  border: none;
+  padding: 8px;
+  border-radius: 0px;
+  cursor: pointer;
+}
+
+#menuButtons button img {
+  width: 48px;
+  height: 48px;
+  filter: brightness(0) invert(0.5);
+}
