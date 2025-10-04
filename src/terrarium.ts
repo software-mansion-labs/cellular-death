@@ -586,7 +586,6 @@ export function createTerrarium(root: TgpuRoot, world: World) {
   wf.connectAsChild(terrarium, bg);
   wf.connectAsChild(terrarium, volume);
 
-  // Goal sphere - positioned in local coordinates relative to the volume
   const goalLocalPos = d.vec3f(
     sim.goalPosition.x / VOLUME_SIZE - 0.5,
     sim.goalPosition.y / VOLUME_SIZE - 0.5,
