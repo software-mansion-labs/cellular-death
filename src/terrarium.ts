@@ -576,7 +576,14 @@ export function createTerrarium(root: TgpuRoot, world: World) {
   wf.connectAsChild(terrarium, goalSphere);
 
   return {
+    get goalReached() {
+      return sim.goalReached;
+    },
+    reset() {
+      sim.reset();
+    },
     startLevel(level: Level) {
+      sim.reset();
       const terrainPipeline = root['~unstable']
         .pipe(cache.inject())
         .with(levelSlot, level)

@@ -21,6 +21,25 @@
         >
             Rapid Aging Active (D)
         </div>
+        <div
+            id="levelIndicator"
+            class="absolute bottom-4 left-4 text-white font-sans text-sm bg-black/70 px-3 py-2 rounded pointer-events-none"
+        >
+            Level 1
+        </div>
+        <div
+            id="goalReachedIndicator"
+            class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-500"
+        >
+            <div class="bg-black/80 px-8 py-6 rounded-lg text-center">
+                <h2 class="text-white font-sans text-2xl mb-2">
+                    Goal Reached!
+                </h2>
+                <p class="text-white/80 font-sans text-sm">
+                    Press Enter to continue
+                </p>
+            </div>
+        </div>
         <div id="menuButtons">
             <button id="resetButton">
                 <img
