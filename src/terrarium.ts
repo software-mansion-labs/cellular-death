@@ -17,6 +17,9 @@ const boxMesh = createBoxMesh(0.5, 0.5, 0.5);
 
 const Terrarium = trait({
   angularMomentum: () => d.vec2f(),
+  prevRotation: () => quatn.identity(d.vec4f()),
+  targetRotation: () => quatn.identity(d.vec4f()),
+  rotationProgress: 0,
 });
 
 const blendState = {
@@ -576,19 +579,62 @@ export function createTerrarium(root: TgpuRoot, world: World) {
       world
         .query(Terrarium, wf.TransformTrait)
         .updateEach(([terrarium, transform]) => {
+          const prevRotation = terrarium.prevRotation;
+          const targetRotation = terrarium.targetRotation;
           const ang = terrarium.angularMomentum;
-          ang.x = wf.encroach(ang.x, 0, 0.01, time.deltaSeconds);
-          ang.y = wf.encroach(ang.y, 0, 0.01, time.deltaSeconds);
 
-          quatn.mul(
-            quatn.fromEuler(ang.x, ang.y, 0, 'xyz', d.vec4f()),
-            transform.rotation,
+          if (!inputData.dragging && (ang.x !== 0 || ang.y !== 0)) {
+            prevRotation.x = transform.rotation.x;
+            prevRotation.y = transform.rotation.y;
+            prevRotation.z = transform.rotation.z;
+            prevRotation.w = transform.rotation.w;
+            terrarium.rotationProgress = 0;
+            const actions = [
+              [d.vec3f(1, 0, 0), ang.x],
+              [d.vec3f(-1, 0, 0), -ang.x],
+              [d.vec3f(0, 1, 0), ang.y],
+              [d.vec3f(0, -1, 0), -ang.y],
+            ] as const;
+            let bestAxis = d.vec3f(1, 0, 0);
+            let bestWeight = 0;
+            for (const [axis, weight] of actions) {
+              if (weight > bestWeight) {
+                bestAxis = axis;
+                bestWeight = weight;
+              }
+            }
+            quatn.mul(
+              quatn.fromAxisAngle(bestAxis, Math.PI / 2, d.vec4f()),
+              targetRotation,
+              targetRotation,
+            );
+            ang.x = 0;
+            ang.y = 0;
+          }
+
+          // Encroaching the rotation
+          terrarium.rotationProgress = wf.encroach(
+            terrarium.rotationProgress,
+            1,
+            0.01,
+            time.deltaSeconds,
+          );
+          quatn.lerp(
+            prevRotation,
+            targetRotation,
+            terrarium.rotationProgress,
             transform.rotation,
           );
+          quatn.normalize(transform.rotation, transform.rotation);
 
           if (inputData.dragging) {
-            ang.x = inputData.dragDeltaY * 2;
-            ang.y = inputData.dragDeltaX * 2;
+            ang.x += inputData.dragDeltaY * 2;
+            ang.y += inputData.dragDeltaX * 2;
+            quatn.mul(
+              quatn.fromEuler(ang.x, ang.y, 0, 'xyz', d.vec4f()),
+              transform.rotation,
+              transform.rotation,
+            );
           }
         });
 
