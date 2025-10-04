@@ -6,6 +6,7 @@ import * as wf from 'wayfare';
 import { createCameraRig } from './cameraRig.ts';
 import { createChamber } from './chamber.ts';
 import { createInputManager } from './inputManager.ts';
+import { LEVELS } from './levels.ts';
 import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
 
@@ -147,11 +148,18 @@ async function initGame() {
   // Camera rig
   const cameraRig = createCameraRig(world);
 
+  let levelInitialized = false;
   engine.run(() => {
     cameraRig.update();
     terrarium.update();
     sun.update();
     chamber.update();
+
+    if (!levelInitialized) {
+      levelInitialized = true;
+      // TODO: Add a way to play more levels
+      terrarium.startLevel(LEVELS[0]);
+    }
   });
 }
 

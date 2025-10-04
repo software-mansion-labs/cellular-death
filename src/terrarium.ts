@@ -7,6 +7,7 @@ import * as wf from 'wayfare';
 import { quatn, vec3n } from 'wgpu-matrix';
 import { createBoxMesh } from './boxMesh.ts';
 import { InputData } from './inputManager.ts';
+import type { Level } from './levels.ts';
 import { createMoldSim } from './mold.ts';
 import { createSphereMesh } from './sphereMesh.ts';
 
@@ -74,6 +75,7 @@ export function createTerrarium(root: TgpuRoot, world: World) {
   );
   const terrainSampled = terrain.createView();
 
+  const levelSlot = tgpu.slot<Level>();
   const initTerrain = tgpu['~unstable'].computeFn({
     in: { gid: d.builtin.globalInvocationId },
     workgroupSize: [4, 4, 4],
@@ -81,34 +83,14 @@ export function createTerrarium(root: TgpuRoot, world: World) {
     const dims = std.textureDimensions(terrainWriteView.$);
     if (gid.x >= dims.x || gid.y >= dims.y || gid.z >= dims.z) return;
 
-    const pos = d.vec3f(gid.xyz);
-    const scale = d.f32(0.02);
-    const noiseValue = perlin3d.sample(pos.mul(scale));
-    const noiseValue2 = perlin3d.sample(pos.mul(scale * 2));
-    const noiseValue3 = perlin3d.sample(pos.mul(scale * 4));
+    const samplePos = d.vec3f(gid).div(d.vec3f(dims.sub(1)));
 
     std.textureStore(
       terrainWriteView.$,
       gid.xyz,
-      d.vec4f(
-        std.saturate(noiseValue + noiseValue2 * 0.2 + noiseValue3 * 0.1),
-        0,
-        0,
-        1,
-      ),
+      d.vec4f(std.saturate(levelSlot.$.init(samplePos)), 0, 0, 1),
     );
   });
-
-  const terrainPipeline = root['~unstable']
-    .pipe(cache.inject())
-    .withCompute(initTerrain)
-    .createPipeline();
-
-  terrainPipeline.dispatchWorkgroups(
-    Math.ceil(resolution.x / 4),
-    Math.ceil(resolution.y / 4),
-    Math.ceil(resolution.z / 4),
-  );
 
   const MoldMaterial = wf.createMaterial({
     vertexLayout: wf.POS_NORMAL_UV,
@@ -604,6 +586,19 @@ export function createTerrarium(root: TgpuRoot, world: World) {
   wf.connectAsChild(terrarium, goalSphere);
 
   return {
+    startLevel(level: Level) {
+      const terrainPipeline = root['~unstable']
+        .pipe(cache.inject())
+        .with(levelSlot, level)
+        .withCompute(initTerrain)
+        .createPipeline();
+
+      terrainPipeline.dispatchWorkgroups(
+        Math.ceil(resolution.x / 4),
+        Math.ceil(resolution.y / 4),
+        Math.ceil(resolution.z / 4),
+      );
+    },
     update() {
       const now = (performance.now() / 1000) % 1000;
       const time = wf.getOrThrow(world, wf.Time);

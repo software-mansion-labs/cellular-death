@@ -11,6 +11,9 @@ importers:
       '@typegpu/noise':
         specifier: https://pkg.pr.new/software-mansion/TypeGPU/@typegpu/noise@2e96c75eb3d2332c02c2aff0f191a55600248381
         version: https://pkg.pr.new/software-mansion/TypeGPU/@typegpu/noise@2e96c75eb3d2332c02c2aff0f191a55600248381(typegpu@https://pkg.pr.new/software-mansion/TypeGPU/typegpu@2e96c75eb3d2332c02c2aff0f191a55600248381)
+      '@typegpu/sdf':
+        specifier: ^0.7.0
+        version: 0.7.0(typegpu@https://pkg.pr.new/software-mansion/TypeGPU/typegpu@2e96c75eb3d2332c02c2aff0f191a55600248381)
       arktype:
         specifier: ^2.1.22
         version: 2.1.22
@@ -695,6 +698,12 @@ packages:
 
   '@typegpu/noise@https://pkg.pr.new/software-mansion/TypeGPU/@typegpu/noise@2e96c75eb3d2332c02c2aff0f191a55600248381':
     resolution: {tarball: https://pkg.pr.new/software-mansion/TypeGPU/@typegpu/noise@2e96c75eb3d2332c02c2aff0f191a55600248381}
+    version: 0.7.0
+    peerDependencies:
+      typegpu: ^0.7.0
+
+  '@typegpu/sdf@0.7.0':
+    resolution: {integrity: sha512-k4bKl4BuDXTTdbz2ZZP46B6qOfuxiZvqxugbPxbnNSkrYTo0oGkFMojsR0VC9zCQbMpiFqLRST/EVvytvi1gRQ==}
     version: 0.7.0
     peerDependencies:
       typegpu: ^0.7.0
@@ -2118,6 +2127,10 @@ snapshots:
     optional: true
 
   '@typegpu/noise@https://pkg.pr.new/software-mansion/TypeGPU/@typegpu/noise@2e96c75eb3d2332c02c2aff0f191a55600248381(typegpu@https://pkg.pr.new/software-mansion/TypeGPU/typegpu@2e96c75eb3d2332c02c2aff0f191a55600248381)':
+    dependencies:
+      typegpu: https://pkg.pr.new/software-mansion/TypeGPU/typegpu@2e96c75eb3d2332c02c2aff0f191a55600248381
+
+  '@typegpu/sdf@0.7.0(typegpu@https://pkg.pr.new/software-mansion/TypeGPU/typegpu@2e96c75eb3d2332c02c2aff0f191a55600248381)':
     dependencies:
       typegpu: https://pkg.pr.new/software-mansion/TypeGPU/typegpu@2e96c75eb3d2332c02c2aff0f191a55600248381
 
