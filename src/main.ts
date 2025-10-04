@@ -8,13 +8,36 @@ import { createInputManager } from './inputManager.ts';
 import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
 
+let showingTitleScreen = true;
 
 function initButtons() {
-  // start button
-  const startButton = document.querySelector('#startButton');
+  // biome-ignore lint/style/noNonNullAssertion: it's fine
+  const titleScreen = document.getElementById('titleScreen')!;
+  if (!titleScreen) throw new Error('titleScreen not found');
+  // biome-ignore lint/style/noNonNullAssertion: it's fine
+  const startButton = document.getElementById('startButton')!;
+  if (!startButton) throw new Error('startButton not found');
 
-  startButton?.addEventListener('click', () => {
-    document.getElementById('titleScreen')?.classList.add('hidden');
+  function updateUI() {
+    if (showingTitleScreen) {
+      titleScreen.dataset.state = 'shown';
+    } else {
+      titleScreen.dataset.state = 'hidden';
+    }
+  }
+  updateUI();
+
+  startButton.addEventListener('click', () => {
+    showingTitleScreen = false;
+    updateUI();
+  });
+
+  // Pause menu
+  document.addEventListener('keydown', (event) => {
+    if (event.code === 'Escape') {
+      showingTitleScreen = true;
+      updateUI();
+    }
   });
 
   // mute button
