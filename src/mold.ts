@@ -622,6 +622,23 @@ export function createMoldSim(
 
   let currentTexture = 0;
 
+  const resetSimulation = () => {
+    activeAgentCount = 0;
+    spawnAccumulator = 0;
+    goalReached = false;
+    lastGoalCheckTime = 0;
+    currentTexture = 0;
+
+    for (const tex of textures) {
+      tex.clear();
+    }
+
+    initPipeline.dispatchWorkgroups(
+      Math.ceil(NUM_AGENTS / AGENT_WORKGROUP_SIZE),
+    );
+    root['~unstable'].flush();
+  };
+
   return {
     textures,
     get currentTexture() {
@@ -633,6 +650,7 @@ export function createMoldSim(
     get goalReached() {
       return goalReached;
     },
+    reset: resetSimulation,
     setSpawnerPosition(newPosition: d.v3f) {
       spawner.writePartial({ spawnPoint: newPosition });
     },
@@ -708,9 +726,6 @@ export function createMoldSim(
           goal.read().then((data) => {
             if (data.reached > 0) {
               goalReached = true;
-              console.log(
-                'Goal reached! Slime density threshold met at goal position.',
-              );
             }
           });
 

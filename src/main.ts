@@ -102,10 +102,17 @@ function initButtons() {
 
   // reset button
   const resetButton = document.getElementById('resetButton');
+  let onReset: (() => void) | null = null;
 
   resetButton?.addEventListener('click', () => {
-    console.log('Reset clicked');
+    onReset?.();
   });
+
+  return {
+    setOnReset: (callback: () => void) => {
+      onReset = callback;
+    },
+  };
 }
 
 async function initGame() {
@@ -129,7 +136,7 @@ async function initGame() {
   resizeCanvas(canvas);
   window.addEventListener('resize', () => resizeCanvas(canvas));
 
-  initButtons();
+  const buttons = initButtons();
   initAgingIndicator();
 
   const world = engine.world;
@@ -148,7 +155,42 @@ async function initGame() {
   // Camera rig
   const cameraRig = createCameraRig(world);
 
+  let currentLevelIndex = 0;
   let levelInitialized = false;
+  let goalReachedShown = false;
+
+  const goalReachedIndicator = document.getElementById('goalReachedIndicator');
+  const levelIndicator = document.getElementById('levelIndicator');
+
+  function updateLevelIndicator() {
+    if (levelIndicator) {
+      levelIndicator.textContent = LEVELS[currentLevelIndex].name;
+    }
+  }
+
+  function loadLevel(index: number) {
+    currentLevelIndex = index;
+    terrarium.startLevel(LEVELS[currentLevelIndex]);
+    updateLevelIndicator();
+    goalReachedShown = false;
+    if (goalReachedIndicator) {
+      goalReachedIndicator.style.opacity = '0';
+    }
+  }
+
+  buttons.setOnReset(() => loadLevel(currentLevelIndex));
+
+  document.addEventListener('keydown', (event) => {
+    if (
+      event.code === 'Enter' &&
+      terrarium.goalReached &&
+      !showingTitleScreen
+    ) {
+      const nextLevel = currentLevelIndex + 1;
+      loadLevel(nextLevel < LEVELS.length ? nextLevel : 0);
+    }
+  });
+
   engine.run(() => {
     cameraRig.update();
     terrarium.update();
@@ -157,8 +199,14 @@ async function initGame() {
 
     if (!levelInitialized) {
       levelInitialized = true;
-      // TODO: Add a way to play more levels
-      terrarium.startLevel(LEVELS[0]);
+      loadLevel(0);
+    }
+
+    if (terrarium.goalReached && !goalReachedShown && !showingTitleScreen) {
+      goalReachedShown = true;
+      if (goalReachedIndicator) {
+        goalReachedIndicator.style.opacity = '1';
+      }
     }
   });
 }

@@ -4,10 +4,10 @@ import tgpu, { type TgpuRoot } from 'typegpu';
 import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import * as wf from 'wayfare';
+import { quatn } from 'wgpu-matrix';
 import chamberUrl from './assets/chamber.obj?url';
 import fanUrl from './assets/fan.obj?url';
 import type { Sun } from './sun';
-import { quatn } from 'wgpu-matrix';
 
 const fogStart = 1;
 const fogEnd = 25;
