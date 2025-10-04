@@ -8,6 +8,7 @@ import { createInputManager } from './inputManager.ts';
 import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
 import * as Tone from 'tone';
+import { getDialogBox } from './dialogBox.ts';
 
 let showingTitleScreen = true;
 
@@ -46,6 +47,8 @@ function initButtons() {
       clickSfx.onstop = () => backgroudMusic.start();
     } );
 
+    getDialogBox().enqueueMessage({message: "Hi there!!", speed: 3})
+    getDialogBox().enqueueMessage({message: "What's up???", speed: 1})
   });
 
   // Pause menu
@@ -131,6 +134,7 @@ async function initGame() {
     terrarium.update();
     sun.update();
     chamber.update();
+    getDialogBox().update();
   });
 }
 
