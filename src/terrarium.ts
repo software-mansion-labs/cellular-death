@@ -598,7 +598,7 @@ export function createTerrarium(root: TgpuRoot, world: World) {
       position: goalLocalPos,
       scale: d.vec3f(1),
     }),
-    ...wf.BlinnPhongMaterial.Bundle({ albedo: d.vec3f(0, 0, 0) }),
+    ...wf.BlinnPhongMaterial.Bundle({ albedo: d.vec3f() }),
   );
 
   wf.connectAsChild(terrarium, goalSphere);
