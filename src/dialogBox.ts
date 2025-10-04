@@ -47,8 +47,8 @@ class DialogBox {
     this.#messageQueue = [];
   }
 
-  enqueueMessage(message: DialogMessage) {
-    this.#messageQueue.push(new MessageTicker(message));
+  enqueueMessage(...messages: DialogMessage[]) {
+    this.#messageQueue.push(...messages.map(m => new MessageTicker(m)));
   }
 
   #tickAndGetCurrentMessage(): string | undefined {

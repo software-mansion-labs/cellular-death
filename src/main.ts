@@ -9,6 +9,7 @@ import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
 import * as Tone from 'tone';
 import { getDialogBox } from './dialogBox.ts';
+import { level1dialogue } from './dialogue.ts';
 
 let showingTitleScreen = true;
 
@@ -47,8 +48,7 @@ function initButtons() {
       clickSfx.onstop = () => backgroudMusic.start();
     } );
 
-    getDialogBox().enqueueMessage({message: "Hi there!!", characterStagger: 30})
-    getDialogBox().enqueueMessage({message: "What's up???", characterStagger: 15})
+    getDialogBox().enqueueMessage(...level1dialogue)
   });
 
   // Pause menu
