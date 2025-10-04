@@ -17,8 +17,10 @@
   "devDependencies": {
     "@biomejs/biome": "^2.2.5",
     "@tailwindcss/vite": "^4.1.14",
+    "@types/node": "^24.6.2",
     "@webgpu/types": "^0.1.65",
     "nw-builder": "^4.15.0",
+    "nwjs-types": "^1.0.0",
     "tailwindcss": "^4.1.14",
     "typescript": "~5.8.3",
     "unplugin-typegpu": "https://pkg.pr.new/software-mansion/TypeGPU/unplugin-typegpu@5fb9a434e8c8b0287fce9e03e824a02f6599fb62",
@@ -27,11 +29,13 @@
   "license": "MIT",
   "packageManager": "pnpm@10.17.1",
   "dependencies": {
-    "@typegpu/noise": "https://pkg.pr.new/software-mansion/TypeGPU/@typegpu/noise@5fb9a434e8c8b0287fce9e03e824a02f6599fb62",
+    "@typegpu/noise": "https://pkg.pr.new/software-mansion/TypeGPU/@typegpu/noise@2e96c75eb3d2332c02c2aff0f191a55600248381",
     "koota": "^0.5.1",
     "tone": "^15.1.22",
-    "typegpu": "https://pkg.pr.new/software-mansion/TypeGPU/typegpu@5fb9a434e8c8b0287fce9e03e824a02f6599fb62",
-    "wayfare": "^0.3.0-alpha.6",
+    "arktype": "^2.1.22",
+    "node": "^24.9.0",
+    "typegpu": "https://pkg.pr.new/software-mansion/TypeGPU/typegpu@2e96c75eb3d2332c02c2aff0f191a55600248381",
+    "wayfare": "^0.3.0-alpha.8",
     "wgpu-matrix": "^3.4.0"
   }
 }

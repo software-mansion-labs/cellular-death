@@ -12,11 +12,20 @@ import { createMoldSim } from './mold.ts';
 const VOLUME_SIZE = 128;
 const RAYMARCH_STEPS = 256;
 const DENSITY_MULTIPLIER = 20;
+const HALO_COLOR = d.vec3f(1, 1, 1);
 const boxMesh = createBoxMesh(0.5, 0.5, 0.5);
 
 const Terrarium = trait({
   angularMomentum: () => d.vec2f(),
+  prevRotation: () => quatn.identity(d.vec4f()),
+  targetRotation: () => quatn.identity(d.vec4f()),
+  rotationProgress: 0,
 });
+
+const blendState = {
+  color: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
+  alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
+} as const;
 
 export function createTerrarium(root: TgpuRoot, world: World) {
   const canFilter = root.enabledFeatures.has('float32-filterable');
@@ -30,6 +39,7 @@ export function createTerrarium(root: TgpuRoot, world: World) {
       texture: d.texture3d(),
       sampleType: canFilter ? 'float' : 'unfilterable-float',
     },
+    time: { uniform: d.f32 },
     cameraPos: { uniform: d.vec3f },
   });
 
@@ -72,11 +82,18 @@ export function createTerrarium(root: TgpuRoot, world: World) {
     const pos = d.vec3f(gid.xyz);
     const scale = d.f32(0.02);
     const noiseValue = perlin3d.sample(pos.mul(scale));
+    const noiseValue2 = perlin3d.sample(pos.mul(scale * 2));
+    const noiseValue3 = perlin3d.sample(pos.mul(scale * 4));
 
     std.textureStore(
       terrainWriteView.$,
       gid.xyz,
-      d.vec4f(std.saturate(noiseValue), 0, 0, 1),
+      d.vec4f(
+        std.saturate(noiseValue + noiseValue2 * 0.2 + noiseValue3 * 0.1),
+        0,
+        0,
+        1,
+      ),
     );
   });
 
@@ -154,12 +171,12 @@ export function createTerrarium(root: TgpuRoot, world: World) {
         const gamma = d.f32(1.4);
         const sigmaT = d.f32(DENSITY_MULTIPLIER);
 
-        const slimeAlbedo = d.vec3f(0.57, 0.44, 0.96);
-        const terrainAlbedo = d.vec3f(0.3, 0.24, 0.3);
+        const slimeAlbedo = d.vec3f(1, 0.5, 0.4);
+        const terrainAlbedo = d.vec3f(0.25, 0.23, 0.2).mul(0.5);
 
         const lightDir = localLightDir;
         const ambientLight = d.f32(0.3);
-        const diffuseStrength = d.f32(0.7);
+        const diffuseStrength = d.f32(0.6);
 
         let transmittance = d.f32(1);
         let accum = d.vec3f();
@@ -308,7 +325,7 @@ export function createTerrarium(root: TgpuRoot, world: World) {
 
             const terrainContrib = terrainAlbedo
               .mul(terrainLighting)
-              .mul(transmittance);
+              .mul(transmittance * 3);
             accum = accum.add(terrainContrib);
             transmittance = d.f32(0);
             break;
@@ -389,12 +406,103 @@ export function createTerrarium(root: TgpuRoot, world: World) {
       return {
         pipeline: root['~unstable']
           .withVertex(vertexFn, wf.POS_NORMAL_UV.attrib)
+          .withFragment(fragmentFn, { format, blend: blendState })
+          .withPrimitive({ topology: 'triangle-list', cullMode: 'front' })
+          .withDepthStencil({
+            depthWriteEnabled: true,
+            depthCompare: 'less',
+            format: 'depth24plus',
+          })
+          .createPipeline(),
+      };
+    },
+  });
+
+  const HaloMaterial = wf.createMaterial({
+    vertexLayout: wf.POS_NORMAL_UV,
+    createPipeline({ root, format, $$ }) {
+      const Varying = {
+        localPos: d.vec3f,
+      };
+
+      const vertexFn = tgpu['~unstable'].vertexFn({
+        in: { pos: d.vec3f },
+        out: { pos: d.builtin.position, ...Varying },
+      })((input) => {
+        const worldPos = $$.modelMat.mul(d.vec4f(input.pos, 1));
+        const pos = $$.viewProjMat.mul(worldPos);
+
+        return {
+          pos,
+          localPos: input.pos,
+        };
+      });
+
+      const fragmentFn = tgpu['~unstable'].fragmentFn({
+        in: Varying,
+        out: d.vec4f,
+      })((input) => {
+        const time = renderLayout.$.time;
+        const alpha = (1 - std.fract(time)) * 0.5;
+        return d.vec4f(HALO_COLOR, 1).mul(alpha);
+      });
+
+      return {
+        pipeline: root['~unstable']
+          .withVertex(vertexFn, wf.POS_NORMAL_UV.attrib)
           .withFragment(fragmentFn, {
             format,
-            blend: {
-              color: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
-              alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
-            },
+            blend: blendState,
+          })
+          .withPrimitive({ topology: 'triangle-list', cullMode: 'front' })
+          .withDepthStencil({
+            depthWriteEnabled: true,
+            depthCompare: 'less',
+            format: 'depth24plus',
+          })
+          .createPipeline(),
+      };
+    },
+  });
+
+  const BgMaterial = wf.createMaterial({
+    vertexLayout: wf.POS_NORMAL_UV,
+    createPipeline({ root, format, $$ }) {
+      const Varying = {
+        localPos: d.vec3f,
+      };
+
+      const vertexFn = tgpu['~unstable'].vertexFn({
+        in: { pos: d.vec3f },
+        out: { pos: d.builtin.position, ...Varying },
+      })((input) => {
+        const worldPos = $$.modelMat.mul(d.vec4f(input.pos, 1));
+        const pos = $$.viewProjMat.mul(worldPos);
+
+        return {
+          pos,
+          localPos: input.pos,
+        };
+      });
+
+      const fragmentFn = tgpu['~unstable'].fragmentFn({
+        in: Varying,
+        out: d.vec4f,
+      })((input) => {
+        const time = renderLayout.$.time;
+
+        const alpha =
+          0.7 + std.abs(std.sin(input.localPos.y * 2 + time * 2)) * 0.2;
+
+        return d.vec4f(HALO_COLOR, 1).mul(std.saturate(alpha));
+      });
+
+      return {
+        pipeline: root['~unstable']
+          .withVertex(vertexFn, wf.POS_NORMAL_UV.attrib)
+          .withFragment(fragmentFn, {
+            format,
+            blend: blendState,
           })
           .withPrimitive({ topology: 'triangle-list', cullMode: 'front' })
           .withDepthStencil({
@@ -408,6 +516,7 @@ export function createTerrarium(root: TgpuRoot, world: World) {
   });
 
   const sim = createMoldSim(root, VOLUME_SIZE, terrainReadView);
+  const timeUniform = root.createUniform(d.f32);
   const cameraPosUniform = root.createUniform(d.vec3f);
 
   const renderBindGroups = [0, 1].map((i) =>
@@ -415,51 +524,138 @@ export function createTerrarium(root: TgpuRoot, world: World) {
       state: sim.textures[i],
       terrain: terrainSampled,
       cameraPos: cameraPosUniform.buffer,
+      time: timeUniform.buffer,
     }),
   );
 
   // Terrarium
-  world.spawn(
+  const terrarium = world.spawn(
     Terrarium(),
+    wf.TransformTrait({ position: d.vec3f(0) }),
+  );
+
+  const bg = world.spawn(
     wf.MeshTrait(boxMesh),
-    ...MoldMaterial.Bundle(),
-    wf.TransformTrait({ position: d.vec3f(0, 0, -1.5) }),
+    ...BgMaterial.Bundle(),
+    wf.TransformTrait({ position: d.vec3f(0), scale: d.vec3f(1.1) }),
     wf.ExtraBindingTrait({ group: undefined }),
   );
+
+  const halo = world.spawn(
+    wf.MeshTrait(boxMesh),
+    ...HaloMaterial.Bundle(),
+    wf.TransformTrait({ position: d.vec3f(0), scale: d.vec3f(1.3) }),
+    wf.ExtraBindingTrait({ group: undefined }),
+  );
+
+  // Ray-marched volume
+  const volume = world.spawn(
+    wf.MeshTrait(boxMesh),
+    ...MoldMaterial.Bundle(),
+    wf.TransformTrait({ position: d.vec3f(0) }),
+    wf.ExtraBindingTrait({ group: undefined }),
+  );
+
+  wf.connectAsChild(terrarium, halo);
+  wf.connectAsChild(terrarium, bg);
+  wf.connectAsChild(terrarium, volume);
 
   return {
     update() {
       // Update terrarium logic here
       sim.tick(world);
 
+      const now = (performance.now() / 1000) % 1000;
       const time = wf.getOrThrow(world, wf.Time);
+      timeUniform.write(now);
 
       // biome-ignore lint/style/noNonNullAssertion: there's a camera
       const camera = world.queryFirst(wf.ActiveCameraTag)!;
       const cameraPos = wf.getOrThrow(camera, wf.TransformTrait).position;
+      cameraPosUniform.write(cameraPos);
 
       const inputData = wf.getOrThrow(world, InputData);
 
       world
-        .query(Terrarium, wf.TransformTrait, wf.ExtraBindingTrait)
-        .updateEach(([terrarium, transform, extraBinding]) => {
-          extraBinding.group = renderBindGroups[1 - sim.currentTexture];
-          cameraPosUniform.write(cameraPos);
-
+        .query(Terrarium, wf.TransformTrait)
+        .updateEach(([terrarium, transform]) => {
+          const prevRotation = terrarium.prevRotation;
+          const targetRotation = terrarium.targetRotation;
           const ang = terrarium.angularMomentum;
-          ang.x = wf.encroach(ang.x, 0, 0.01, time.deltaSeconds);
-          ang.y = wf.encroach(ang.y, 0, 0.01, time.deltaSeconds);
 
-          quatn.mul(
-            quatn.fromEuler(ang.x, ang.y, 0, 'xyz', d.vec4f()),
-            transform.rotation,
+          if (!inputData.dragging && (ang.x !== 0 || ang.y !== 0)) {
+            prevRotation.x = transform.rotation.x;
+            prevRotation.y = transform.rotation.y;
+            prevRotation.z = transform.rotation.z;
+            prevRotation.w = transform.rotation.w;
+            terrarium.rotationProgress = 0;
+            const actions = [
+              [d.vec3f(1, 0, 0), ang.x],
+              [d.vec3f(-1, 0, 0), -ang.x],
+              [d.vec3f(0, 1, 0), ang.y],
+              [d.vec3f(0, -1, 0), -ang.y],
+            ] as const;
+            let bestAxis = d.vec3f(1, 0, 0);
+            let bestWeight = 0;
+            for (const [axis, weight] of actions) {
+              if (weight > bestWeight) {
+                bestAxis = axis;
+                bestWeight = weight;
+              }
+            }
+            quatn.mul(
+              quatn.fromAxisAngle(bestAxis, Math.PI / 2, d.vec4f()),
+              targetRotation,
+              targetRotation,
+            );
+            ang.x = 0;
+            ang.y = 0;
+          }
+
+          // Encroaching the rotation
+          terrarium.rotationProgress = wf.encroach(
+            terrarium.rotationProgress,
+            1,
+            0.01,
+            time.deltaSeconds,
+          );
+          quatn.lerp(
+            prevRotation,
+            targetRotation,
+            terrarium.rotationProgress,
             transform.rotation,
           );
+          quatn.normalize(transform.rotation, transform.rotation);
 
           if (inputData.dragging) {
-            ang.x = inputData.dragDeltaY * 2;
-            ang.y = inputData.dragDeltaX * 2;
+            ang.x += inputData.dragDeltaY * 2;
+            ang.y += inputData.dragDeltaX * 2;
+            quatn.mul(
+              quatn.fromEuler(ang.x, ang.y, 0, 'xyz', d.vec4f()),
+              transform.rotation,
+              transform.rotation,
+            );
           }
+        });
+
+      world
+        .query(MoldMaterial.Params, wf.ExtraBindingTrait)
+        .updateEach(([_params, extraBinding]) => {
+          extraBinding.group = renderBindGroups[1 - sim.currentTexture];
+        });
+
+      world
+        .query(BgMaterial.Params, wf.ExtraBindingTrait)
+        .updateEach(([_params, extraBinding]) => {
+          extraBinding.group = renderBindGroups[1 - sim.currentTexture];
+        });
+
+      world
+        .query(HaloMaterial.Params, wf.TransformTrait, wf.ExtraBindingTrait)
+        .updateEach(([_params, transform, extraBinding]) => {
+          extraBinding.group = renderBindGroups[1 - sim.currentTexture];
+
+          transform.scale = d.vec3f(1.1 + std.fract(now) * 0.05);
         });
     },
   };
