@@ -84,8 +84,6 @@ export function createMoldSim(
   const spawnPoint = spawnerConfig?.spawnPoint ?? resolution.div(2);
   const spawnRate = spawnerConfig?.spawnRate ?? 10000;
   const targetCount = spawnerConfig?.targetCount ?? NUM_AGENTS;
-  const goalPos =
-    goalPosition ?? d.vec3f(volumeSize / 2, volumeSize - 10, volumeSize / 2);
 
   const spawnRange = root.createUniform(SpawnRange, {
     startIndex: 0,
@@ -93,7 +91,8 @@ export function createMoldSim(
   });
 
   const goal = root.createMutable(GoalConfig, {
-    position: goalPos,
+    position:
+      goalPosition ?? d.vec3f(volumeSize / 2, volumeSize - 10, volumeSize / 2),
     reached: 0,
   });
 
@@ -634,7 +633,13 @@ export function createMoldSim(
     get goalReached() {
       return goalReached;
     },
-    goalPosition: goalPos,
+    setSpawnerPosition(newPosition: d.v3f) {
+      spawner.writePartial({ spawnPoint: newPosition });
+    },
+    setGoalPosition(newPosition: d.v3f) {
+      goal.write({ position: newPosition, reached: 0 });
+      goalReached = false;
+    },
     tick(world: World, gravityDir: d.v3f) {
       const time = wf.getOrThrow(world, wf.Time);
       const deltaTime = time.deltaSeconds;

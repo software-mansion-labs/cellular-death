@@ -15,11 +15,7 @@ const VOLUME_SIZE = 128;
 const RAYMARCH_STEPS = 256;
 const DENSITY_MULTIPLIER = 20;
 const HALO_COLOR = d.vec3f(1, 1, 1);
-const GOAL_POSITION = d.vec3f(
-  VOLUME_SIZE / 2,
-  VOLUME_SIZE - 10,
-  VOLUME_SIZE / 2,
-);
+
 const boxMesh = createBoxMesh(0.5, 0.5, 0.5);
 const sphereMesh = createSphereMesh(0.05, 12, 8);
 
@@ -518,11 +514,11 @@ export function createTerrarium(root: TgpuRoot, world: World) {
     VOLUME_SIZE,
     terrainReadView,
     {
-      spawnPoint: d.vec3f(VOLUME_SIZE / 2, 0, VOLUME_SIZE / 2),
+      spawnPoint: d.vec3f(9999),
       spawnRate: 5_000,
       targetCount: 100_000,
     },
-    GOAL_POSITION,
+    d.vec3f(-9999),
   );
   const timeUniform = root.createUniform(d.f32);
   const cameraPosUniform = root.createUniform(d.vec3f);
@@ -568,16 +564,10 @@ export function createTerrarium(root: TgpuRoot, world: World) {
   wf.connectAsChild(terrarium, bg);
   wf.connectAsChild(terrarium, volume);
 
-  const goalLocalPos = d.vec3f(
-    sim.goalPosition.x / VOLUME_SIZE - 0.5,
-    sim.goalPosition.y / VOLUME_SIZE - 0.5,
-    sim.goalPosition.z / VOLUME_SIZE - 0.5,
-  );
-
   const goalSphere = world.spawn(
     wf.MeshTrait(sphereMesh),
     wf.TransformTrait({
-      position: goalLocalPos,
+      position: d.vec3f(),
       scale: d.vec3f(1),
     }),
     ...wf.BlinnPhongMaterial.Bundle({ albedo: d.vec3f() }),
@@ -598,6 +588,20 @@ export function createTerrarium(root: TgpuRoot, world: World) {
         Math.ceil(resolution.y / 4),
         Math.ceil(resolution.z / 4),
       );
+
+      // Convert normalized level positions (0-1) to volume coordinates
+      const spawnerPos = level.spawnerPosition.mul(VOLUME_SIZE);
+      const goalPos = level.goalPosition.mul(VOLUME_SIZE);
+
+      sim.setSpawnerPosition(spawnerPos);
+      sim.setGoalPosition(goalPos);
+
+      const goalTransform = wf.getOrThrow(goalSphere, wf.TransformTrait);
+      goalTransform.position.x = level.goalPosition.x - 0.5;
+      goalTransform.position.y = level.goalPosition.y - 0.5;
+      goalTransform.position.z = level.goalPosition.z - 0.5;
+      // TODO: This doesn't work but shoudl (it does not update the transform for some reason)
+      // goalTransform.position = level.goalPosition.sub(0.5);
     },
     update() {
       const now = (performance.now() / 1000) % 1000;
