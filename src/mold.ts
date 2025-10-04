@@ -21,6 +21,7 @@ const GOAL_CHECK_RADIUS = 5.0;
 const GOAL_DENSITY_THRESHOLD = 100.0;
 const RAPID_AGING_MULTIPLIER = 5.0;
 const GOAL_CHECK_INTERVAL = 0.5; // seconds
+const GOAL_ATTRACTION_STRENGTH = 2.0;
 
 const DEFAULT_MOVE_SPEED = 50.0;
 const DEFAULT_SENSOR_ANGLE = 1;
@@ -364,6 +365,21 @@ export function createMoldSim(
       GRAVITY_STRENGTH * params.$.deltaTime,
     );
     direction = std.normalize(direction.add(gravityInfluence));
+
+    const toGoal = goal.$.position.sub(agent.position);
+    const distanceToGoal = std.length(toGoal);
+    const goalRadius = d.f32(GOAL_CHECK_RADIUS);
+
+    if (distanceToGoal > goalRadius) {
+      const normalizedDistance = (distanceToGoal - goalRadius) / dimsf.x;
+      const attractionStrength =
+        GOAL_ATTRACTION_STRENGTH * std.exp(-normalizedDistance * 6);
+      const goalDir = std.normalize(toGoal);
+      const goalInfluence = goalDir.mul(
+        attractionStrength * params.$.deltaTime,
+      );
+      direction = std.normalize(direction.add(goalInfluence));
+    }
 
     let newPos = agent.position.add(direction.mul(moveDistance));
 
