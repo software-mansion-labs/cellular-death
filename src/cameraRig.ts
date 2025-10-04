@@ -12,6 +12,7 @@ function curveLookAngle(angle: number) {
 const GameCamera = trait({
   smoothYaw: 0,
   smoothPitch: 0,
+  zoom: 0,
 });
 
 export function createCameraRig(world: World) {
@@ -34,23 +35,25 @@ export function createCameraRig(world: World) {
       const inputData = wf.getOrThrow(world, InputData);
 
       world
-        .query(wf.TransformTrait, GameCamera)
-        .updateEach(([transform, data]) => {
+        .query(wf.TransformTrait, GameCamera, wf.PerspectiveCamera)
+        .updateEach(([transform, data, perspective]) => {
           const time = wf.getOrThrow(world, wf.Time);
           const dt = time.deltaSeconds;
           const mx = (saturate(inputData.mouseX) - 0.5) * 2;
           const my = (saturate(inputData.mouseY) - 0.5) * 2;
 
+          const zooming = wf.Input.isKeyDown('Space');
+
           if (!inputData.dragging) {
             data.smoothYaw = wf.encroach(
               data.smoothYaw,
-              curveLookAngle(mx),
+              zooming ? mx * 1.5 : curveLookAngle(mx),
               0.1,
               dt,
             );
             data.smoothPitch = wf.encroach(
               data.smoothPitch,
-              curveLookAngle(my),
+              zooming ? my * 1.5 : curveLookAngle(my),
               0.1,
               dt,
             );
@@ -63,6 +66,11 @@ export function createCameraRig(world: World) {
               d.vec4f(),
             );
           }
+
+          // Zoom
+          data.zoom = wf.encroach(data.zoom, zooming ? 1 : 0, 0.01, dt);
+
+          perspective.fov = 70 - data.zoom * 40;
         });
     },
   };
