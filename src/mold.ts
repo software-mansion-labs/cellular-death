@@ -17,6 +17,11 @@ const RANDOM_DIRECTION_WEIGHT = 0.3;
 const CENTER_BIAS_WEIGHT = 0.7;
 const GRAVITY_STRENGTH = 2;
 
+const INACTIVE_POSITION = d.vec3f(-9999, -9999, -9999);
+const DEATH_TIME_THRESHOLD = 3.0;
+const DENSITY_CHECK_THRESHOLD = 0.01;
+const MAX_LIFETIME = 30.0;
+
 const DEFAULT_MOVE_SPEED = 50.0;
 const DEFAULT_SENSOR_ANGLE = 1;
 const DEFAULT_SENSOR_DISTANCE = 4.0;
@@ -26,6 +31,9 @@ const DEFAULT_EVAPORATION_RATE = 0.04;
 const Agent = d.struct({
   position: d.vec3f,
   direction: d.vec3f,
+  isActive: d.f32,
+  timeSinceContact: d.f32,
+  totalLifetime: d.f32,
 });
 
 const Params = d.struct({
@@ -38,27 +46,41 @@ const Params = d.struct({
   gravityDir: d.vec3f,
 });
 
+const SpawnerConfig = d.struct({
+  spawnPoint: d.vec3f,
+  spawnRate: d.f32,
+  targetCount: d.u32,
+});
+
 export function createMoldSim(
   root: TgpuRoot,
   volumeSize: number,
   terrainTexture: TgpuTextureView<
     d.WgslStorageTexture3d<'r32float', 'read-only'>
   >,
+  spawnerConfig?: {
+    spawnPoint?: d.v3f;
+    spawnRate?: number;
+    targetCount?: number;
+  },
 ) {
   const resolution = d.vec3f(volumeSize);
 
   const agentsData = root.createMutable(d.arrayOf(Agent, NUM_AGENTS));
 
+  const spawnPoint = spawnerConfig?.spawnPoint ?? resolution.div(2);
+  const spawnRate = spawnerConfig?.spawnRate ?? 10000;
+  const targetCount = spawnerConfig?.targetCount ?? NUM_AGENTS;
+
   prepareDispatch(root, (x) => {
     'kernel';
-    randf.seed(x / NUM_AGENTS);
-    const pos = randf
-      .inUnitSphere()
-      .mul(resolution.x / 4)
-      .add(resolution.div(2));
-    const center = resolution.div(2);
-    const dir = std.normalize(center.sub(pos));
-    agentsData.$[x] = Agent({ position: pos, direction: dir });
+    agentsData.$[x] = Agent({
+      position: INACTIVE_POSITION,
+      direction: d.vec3f(0, 1, 0),
+      isActive: 0,
+      timeSinceContact: 0,
+      totalLifetime: 0,
+    });
   }).dispatch(NUM_AGENTS);
 
   const params = root.createUniform(Params, {
@@ -71,19 +93,28 @@ export function createMoldSim(
     gravityDir: d.vec3f(0, -1, 0),
   });
 
+  const spawner = root.createUniform(SpawnerConfig, {
+    spawnPoint,
+    spawnRate,
+    targetCount,
+  });
+
+  let activeAgentCount = 0;
+  let spawnAccumulator = 0;
+
   const textures = [0, 1].map(() =>
     root['~unstable']
       .createTexture({
         size: [resolution.x, resolution.y, resolution.z],
-        format: 'r32float',
+        format: 'rg32float',
         dimension: '3d',
       })
       .$usage('sampled', 'storage'),
   );
 
   const computeLayout = tgpu.bindGroupLayout({
-    oldState: { storageTexture: d.textureStorage3d('r32float', 'read-only') },
-    newState: { storageTexture: d.textureStorage3d('r32float', 'write-only') },
+    oldState: { storageTexture: d.textureStorage3d('rg32float', 'read-only') },
+    newState: { storageTexture: d.textureStorage3d('rg32float', 'write-only') },
     terrain: { storageTexture: d.textureStorage3d('r32float', 'read-only') },
   });
 
@@ -201,12 +232,17 @@ export function createMoldSim(
       return;
     }
 
+    const agent = agentsData.$[gid.x];
+
+    if (agent.isActive < 0.5) {
+      return;
+    }
+
     randf.seed(gid.x / NUM_AGENTS + 0.1);
 
     const dims = std.textureDimensions(computeLayout.$.oldState);
     const dimsf = d.vec3f(dims);
 
-    const agent = agentsData.$[gid.x];
     const random = randf.sample();
 
     let direction = std.normalize(agent.direction);
@@ -307,20 +343,47 @@ export function createMoldSim(
       );
     }
 
+    const oldStateVec = std.textureLoad(
+      computeLayout.$.oldState,
+      d.vec3u(newPos),
+    );
+    const oldDensity = oldStateVec.x;
+    const oldLifetime = oldStateVec.y;
+
+    let newTimeSinceContact = agent.timeSinceContact + params.$.deltaTime;
+    const newTotalLifetime = agent.totalLifetime + params.$.deltaTime;
+
+    if (oldDensity > DENSITY_CHECK_THRESHOLD) {
+      newTimeSinceContact = 0;
+    }
+
+    let newIsActive = d.f32(1);
+    if (
+      newTimeSinceContact > DEATH_TIME_THRESHOLD ||
+      newTotalLifetime > MAX_LIFETIME
+    ) {
+      newIsActive = 0;
+    }
+
     agentsData.$[gid.x] = Agent({
       position: newPos,
       direction,
+      isActive: newIsActive,
+      timeSinceContact: newTimeSinceContact,
+      totalLifetime: newTotalLifetime,
     });
 
-    const oldState = std.textureLoad(
-      computeLayout.$.oldState,
-      d.vec3u(newPos),
-    ).x;
-    const newState = oldState + 1;
+    const newDensity = oldDensity + 1;
+    const normalizedLifetime = std.saturate(newTotalLifetime / MAX_LIFETIME);
+    const blendedLifetime = std.select(
+      normalizedLifetime,
+      (oldLifetime * oldDensity + normalizedLifetime) / newDensity,
+      oldDensity > 0.1,
+    );
     std.textureStore(
       computeLayout.$.newState,
       d.vec3u(newPos),
-      d.vec4f(newState, 0, 0, 1),
+      d.vec4f(newDensity, blendedLifetime, 0, 1),
     );
   });
 
@@ -350,23 +413,31 @@ export function createMoldSim(
             samplePos.z >= 0 &&
             samplePos.z < dimsi.z
           ) {
-            const value = std.textureLoad(
+            const valueVec = std.textureLoad(
               computeLayout.$.oldState,
               d.vec3u(samplePos),
-            ).x;
-            sum = sum + value;
+            );
+            sum = sum + valueVec.x;
             count = count + 1;
           }
         }
       }
     }
 
-    const blurred = sum / count;
-    const newValue = std.saturate(blurred - params.$.evaporationRate);
+    const blurredDensity = sum / count;
+    const newDensity = std.saturate(blurredDensity - params.$.evaporationRate);
+
+    const centerValue = std.textureLoad(computeLayout.$.oldState, gid.xyz);
+    let lifetime = centerValue.y;
+
+    if (newDensity < 0.01) {
+      lifetime = 0;
+    }
+
     std.textureStore(
       computeLayout.$.newState,
       gid.xyz,
-      d.vec4f(newValue, 0, 0, 1),
+      d.vec4f(newDensity, lifetime, 0, 1),
     );
   });
 
@@ -391,10 +462,69 @@ export function createMoldSim(
     get currentTexture() {
       return currentTexture;
     },
+    get activeAgentCount() {
+      return activeAgentCount;
+    },
     tick(world: World, gravityDir: d.v3f) {
       const time = wf.getOrThrow(world, wf.Time);
       const deltaTime = time.deltaSeconds;
       params.writePartial({ deltaTime, gravityDir });
+
+      if (activeAgentCount < targetCount) {
+        spawnAccumulator += deltaTime * spawnRate;
+        const toSpawn = Math.floor(spawnAccumulator);
+
+        if (toSpawn > 0) {
+          const newActiveCount = Math.min(
+            activeAgentCount + toSpawn,
+            targetCount,
+          );
+
+          if (newActiveCount > 0) {
+            prepareDispatch(root, (x) => {
+              'kernel';
+              if (x >= activeAgentCount && x < newActiveCount) {
+                randf.seed(x / NUM_AGENTS);
+                const randomOffset = randf.inUnitSphere().mul(5);
+                const pos = spawner.$.spawnPoint.add(randomOffset);
+                const center = resolution.div(2);
+                const dir = std.normalize(center.sub(pos));
+                agentsData.$[x] = Agent({
+                  position: pos,
+                  direction: dir,
+                  isActive: 1,
+                  timeSinceContact: 0,
+                  totalLifetime: 0,
+                });
+              }
+            }).dispatch(newActiveCount);
+          }
+
+          activeAgentCount = newActiveCount;
+          spawnAccumulator -= toSpawn;
+        }
+      }
+
+      if (activeAgentCount > 0) {
+        prepareDispatch(root, (x) => {
+          'kernel';
+          const agent = agentsData.$[x];
+          if (x < activeAgentCount && agent.isActive < 0.5) {
+            randf.seed(x / NUM_AGENTS + 0.5);
+            const randomOffset = randf.inUnitSphere().mul(5);
+            const pos = spawner.$.spawnPoint.add(randomOffset);
+            const center = resolution.div(2);
+            const dir = std.normalize(center.sub(pos));
+            agentsData.$[x] = Agent({
+              position: pos,
+              direction: dir,
+              isActive: 1,
+              timeSinceContact: 0,
+              totalLifetime: 0,
+            });
+          }
+        }).dispatch(activeAgentCount);
+      }
 
       blurPipeline
         .with(computeLayout, bindGroups[currentTexture])
