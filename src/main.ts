@@ -1,20 +1,25 @@
 import './style.css';
 
+import * as Tone from 'tone';
 import tgpu from 'typegpu';
 import * as wf from 'wayfare';
 import { createCameraRig } from './cameraRig.ts';
 import { createChamber } from './chamber.ts';
 import { createInputManager } from './inputManager.ts';
+import { LEVELS } from './levels.ts';
 import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
-import * as Tone from 'tone';
 
 let showingTitleScreen = true;
 
 function initButtons() {
   // sound and music
-  const clickSfx = new Tone.Player("assets/sfx/ambient-snare.mp3").toDestination();
-  const backgroudMusic =  new Tone.Player("assets/sfx/background-music.mp3").toDestination();
+  const clickSfx = new Tone.Player(
+    'assets/sfx/ambient-snare.mp3',
+  ).toDestination();
+  const backgroudMusic = new Tone.Player(
+    'assets/sfx/background-music.mp3',
+  ).toDestination();
   backgroudMusic.loop = true;
 
   // biome-ignore lint/style/noNonNullAssertion: it's fine
@@ -41,11 +46,10 @@ function initButtons() {
     Tone.start();
 
     // play the clickSfx
-    Tone.loaded().then(() => { 
-      clickSfx.start(); 
+    Tone.loaded().then(() => {
+      clickSfx.start();
       clickSfx.onstop = () => backgroudMusic.start();
-    } );
-
+    });
   });
 
   // Pause menu
@@ -75,7 +79,7 @@ function initButtons() {
     }
   });
 
-  muteButton?.addEventListener("click", () => {
+  muteButton?.addEventListener('click', () => {
     Tone.getDestination().mute = !Tone.getDestination().mute;
   });
 
@@ -126,11 +130,18 @@ async function initGame() {
   // Camera rig
   const cameraRig = createCameraRig(world);
 
+  let levelInitialized = false;
   engine.run(() => {
     cameraRig.update();
     terrarium.update();
     sun.update();
     chamber.update();
+
+    if (!levelInitialized) {
+      levelInitialized = true;
+      // TODO: Add a way to play more levels
+      terrarium.startLevel(LEVELS[0]);
+    }
   });
 }
 
