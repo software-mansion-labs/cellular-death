@@ -4,7 +4,7 @@ import tgpu, { type TgpuRoot } from 'typegpu';
 import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import * as wf from 'wayfare';
-import { quatn } from 'wgpu-matrix';
+import { quatn, vec3n } from 'wgpu-matrix';
 import { createBoxMesh } from './boxMesh.ts';
 import { InputData } from './inputManager.ts';
 import { createMoldSim } from './mold.ts';
@@ -562,9 +562,6 @@ export function createTerrarium(root: TgpuRoot, world: World) {
 
   return {
     update() {
-      // Update terrarium logic here
-      sim.tick(world);
-
       const now = (performance.now() / 1000) % 1000;
       const time = wf.getOrThrow(world, wf.Time);
       timeUniform.write(now);
@@ -575,6 +572,8 @@ export function createTerrarium(root: TgpuRoot, world: World) {
       cameraPosUniform.write(cameraPos);
 
       const inputData = wf.getOrThrow(world, InputData);
+
+      let localGravityDir = d.vec3f(0, -1, 0);
 
       world
         .query(Terrarium, wf.TransformTrait)
@@ -636,7 +635,17 @@ export function createTerrarium(root: TgpuRoot, world: World) {
               transform.rotation,
             );
           }
+
+          const worldGravity = vec3n.fromValues(0, -1, 0);
+          const invRotation = quatn.conjugate(transform.rotation);
+          localGravityDir = vec3n.transformQuat(
+            worldGravity,
+            invRotation,
+            d.vec3f(),
+          );
         });
+
+      sim.tick(world, localGravityDir);
 
       world
         .query(MoldMaterial.Params, wf.ExtraBindingTrait)
