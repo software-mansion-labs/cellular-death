@@ -12,6 +12,23 @@ import { createTerrarium } from './terrarium.ts';
 
 let showingTitleScreen = true;
 
+function initAgingIndicator() {
+  const agingIndicator = document.getElementById('agingIndicator');
+  if (!agingIndicator) return;
+
+  document.addEventListener('keydown', (event) => {
+    if (event.code === 'KeyD') {
+      agingIndicator.style.opacity = '1';
+    }
+  });
+
+  document.addEventListener('keyup', (event) => {
+    if (event.code === 'KeyD') {
+      agingIndicator.style.opacity = '0';
+    }
+  });
+}
+
 function initButtons() {
   // sound and music
   const clickSfx = new Tone.Player(
@@ -113,6 +130,7 @@ async function initGame() {
   window.addEventListener('resize', () => resizeCanvas(canvas));
 
   initButtons();
+  initAgingIndicator();
 
   const world = engine.world;
 
