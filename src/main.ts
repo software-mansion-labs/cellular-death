@@ -47,8 +47,8 @@ function initButtons() {
       clickSfx.onstop = () => backgroudMusic.start();
     } );
 
-    getDialogBox().enqueueMessage({message: "Hi there!!", speed: 30})
-    getDialogBox().enqueueMessage({message: "What's up???", speed: 15})
+    getDialogBox().enqueueMessage({message: "Hi there!!", characterStagger: 30})
+    getDialogBox().enqueueMessage({message: "What's up???", characterStagger: 15})
   });
 
   // Pause menu

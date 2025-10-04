@@ -9,19 +9,19 @@ export function getDialogBox() {
 
 export interface DialogMessage {
   message: string;
-  speed: number; // how many frames does displaying each character take?
+  characterStagger: number; // how many frames does displaying each character take?
 }
 
 class MessageTicker {
   #message: string;
-  #speed: number;
+  #characterStagger: number;
 
   #charCount: number;
   #timeUntilNextChar: number;
 
-  constructor({ message, speed }: DialogMessage) {
+  constructor({ message, characterStagger: speed }: DialogMessage) {
     this.#message = message;
-    this.#speed = speed;
+    this.#characterStagger = speed;
     this.#charCount = 0;
     this.#timeUntilNextChar = speed;
   }
@@ -29,7 +29,7 @@ class MessageTicker {
   update(): string | undefined {
     this.#timeUntilNextChar -= 1;
     if (this.#timeUntilNextChar === 0) {
-      this.#timeUntilNextChar = this.#speed;
+      this.#timeUntilNextChar = this.#characterStagger;
       this.#charCount += 1;
     }
 
@@ -84,6 +84,6 @@ class DialogBox {
       return;
     }
     dialogElement.dataset.state = "visible";
-    dialogElement.innerText = message;
+    dialogElement.innerText = message + "\u00A0";
   }
 }
