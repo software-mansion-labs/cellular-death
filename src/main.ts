@@ -12,7 +12,9 @@ import { createTerrarium } from './terrarium.ts';
 import { getDialogBox } from './dialogBox.ts';
 import { level1dialogue } from './dialogue.ts';
 
+let quality: 'low' | 'high' | 'ultra' = 'high';
 let showingTitleScreen = true;
+let pauseMenuVariant = false;
 
 function initAgingIndicator() {
   const agingIndicator = document.getElementById('agingIndicator');
@@ -54,6 +56,12 @@ function initButtons() {
     } else {
       titleScreen.dataset.state = 'hidden';
     }
+
+    if (pauseMenuVariant) {
+      titleScreen.dataset.variant = 'pause';
+    } else {
+      titleScreen.dataset.variant = 'title';
+    }
   }
   updateUI();
 
@@ -64,18 +72,30 @@ function initButtons() {
     // setup Tone
     Tone.start();
 
+    if (pauseMenuVariant) {
+      return;
+    }
+
+    // Not the pause menu, so we start the game 🍝
+    getDialogBox().enqueueMessage(...level1dialogue);
+
     // play the clickSfx
     Tone.loaded().then(() => {
       clickSfx.start();
       clickSfx.onstop = () => backgroudMusic.start();
     });
-    getDialogBox().enqueueMessage(...level1dialogue)
   });
 
   // Pause menu
   document.addEventListener('keydown', (event) => {
+    if (showingTitleScreen) {
+      // Already shown
+      return;
+    }
+
     if (event.code === 'Escape') {
       showingTitleScreen = true;
+      pauseMenuVariant = true;
       updateUI();
     }
   });
@@ -131,7 +151,13 @@ async function initGame() {
   const engine = new wf.Engine(root, renderer);
 
   const resizeCanvas = (canvas: HTMLCanvasElement) => {
-    const dpr = window.devicePixelRatio || 1;
+    const dpr =
+      (window.devicePixelRatio || 1) *
+      {
+        low: 0.25,
+        high: 0.5,
+        ultra: 1,
+      }[quality];
     canvas.width = canvas.clientWidth * dpr;
     canvas.height = canvas.clientHeight * dpr;
     renderer.updateViewport(canvas.width, canvas.height);
