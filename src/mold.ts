@@ -20,6 +20,7 @@ const MAX_LIFETIME = 5.0;
 const GOAL_CHECK_RADIUS = 5.0;
 const GOAL_DENSITY_THRESHOLD = 100.0;
 const RAPID_AGING_MULTIPLIER = 5.0;
+const GOAL_CHECK_INTERVAL = 0.5; // seconds
 
 const DEFAULT_MOVE_SPEED = 50.0;
 const DEFAULT_SENSOR_ANGLE = 1;
@@ -115,6 +116,7 @@ export function createMoldSim(
   let activeAgentCount = 0;
   let spawnAccumulator = 0;
   let goalReached = false;
+  let lastGoalCheckTime = 0;
 
   const textures = [0, 1].map(() =>
     root['~unstable']
@@ -676,18 +678,23 @@ export function createMoldSim(
       }
 
       if (!goalReached) {
-        checkGoalPipeline
-          .with(goalCheckLayout, goalCheckBindGroups[currentTexture])
-          .dispatchWorkgroups(1, 1, 1);
+        const currentTime = performance.now() / 1000;
+        if (currentTime - lastGoalCheckTime >= GOAL_CHECK_INTERVAL) {
+          checkGoalPipeline
+            .with(goalCheckLayout, goalCheckBindGroups[currentTexture])
+            .dispatchWorkgroups(1, 1, 1);
 
-        goal.read().then((data) => {
-          if (data.reached > 0) {
-            goalReached = true;
-            console.log(
-              'Goal reached! Slime density threshold met at goal position.',
-            );
-          }
-        });
+          goal.read().then((data) => {
+            if (data.reached > 0) {
+              goalReached = true;
+              console.log(
+                'Goal reached! Slime density threshold met at goal position.',
+              );
+            }
+          });
+
+          lastGoalCheckTime = currentTime;
+        }
       }
 
       currentTexture = 1 - currentTexture;
