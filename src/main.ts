@@ -7,10 +7,16 @@ import { createChamber } from './chamber.ts';
 import { createInputManager } from './inputManager.ts';
 import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
+import * as Tone from 'tone';
 
 let showingTitleScreen = true;
 
 function initButtons() {
+  // sound and music
+  const clickSfx = new Tone.Player("assets/sfx/ambient-snare.mp3").toDestination();
+  const backgroudMusic =  new Tone.Player("assets/sfx/background-music.mp3").toDestination();
+  backgroudMusic.loop = true;
+
   // biome-ignore lint/style/noNonNullAssertion: it's fine
   const titleScreen = document.getElementById('titleScreen')!;
   if (!titleScreen) throw new Error('titleScreen not found');
@@ -30,6 +36,16 @@ function initButtons() {
   startButton.addEventListener('click', () => {
     showingTitleScreen = false;
     updateUI();
+
+    // setup Tone
+    Tone.start();
+
+    // play the clickSfx
+    Tone.loaded().then(() => { 
+      clickSfx.start(); 
+      clickSfx.onstop = () => backgroudMusic.start();
+    } );
+
   });
 
   // Pause menu
@@ -59,8 +75,8 @@ function initButtons() {
     }
   });
 
-  muteButton?.addEventListener('click', () => {
-    console.log('Mute clicked');
+  muteButton?.addEventListener("click", () => {
+    Tone.getDestination().mute = !Tone.getDestination().mute;
   });
 
   // reset button
