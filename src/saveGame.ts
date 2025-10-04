@@ -1,7 +1,6 @@
 import { type } from 'arktype';
-import { trait } from 'koota';
 
-const GameState = type({
+export const GameState = type({
   testString: 'string',
   testNumber: 'number',
   testBoolean: 'boolean',
@@ -84,32 +83,23 @@ const loadGameLocalStorage = (name: string): typeof GameState.infer => {
   return defaultGameState as typeof GameState.infer;
 };
 
-const GameStateManagerTag = trait();
-
-interface GameStateManager {
-  saveGame(gameState: typeof GameState.infer, name: string): void;
-  loadGame(name: string): typeof GameState.infer;
-}
-
 /**
  * Handles saving and loading the game state.
  *
  * In browser environment, it uses localStorage.
  * In NW.js environment, it stores data in the OS default app data specified by nw.App.dataPath.
  *
- * - `saveGame` accepts a `GameState` object.
- * - `loadGame` attempts to retrieve the game state. If it fails, it returns the default state.
+ * - `state` can be read and modified by the running game
+ * - `save()` stores the modified 'state' value
  */
-function createGameStateManager() {
-  const onNWJS = typeof nw !== 'undefined';
+const onNWJS = typeof nw !== 'undefined';
 
-  const saveGame = onNWJS ? saveGameNWJS : saveGameLocalStorage;
-  const loadGame = onNWJS ? loadGameNWJS : loadGameLocalStorage;
+const saveGame = onNWJS ? saveGameNWJS : saveGameLocalStorage;
+const loadGame = onNWJS ? loadGameNWJS : loadGameLocalStorage;
 
-  return {
-    saveGame,
-    loadGame,
-  } as GameStateManager;
-}
-
-export { createGameStateManager, GameStateManagerTag, GameState };
+export const gameStateManager = {
+  state: loadGame('main'),
+  save() {
+    saveGame(this.state, 'main');
+  },
+};
