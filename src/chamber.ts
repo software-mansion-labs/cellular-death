@@ -1,17 +1,23 @@
 import { perlin2d, randf } from '@typegpu/noise';
-import type { World } from 'koota';
+import { trait, type World } from 'koota';
 import tgpu, { type TgpuRoot } from 'typegpu';
 import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import * as wf from 'wayfare';
 import chamberUrl from './assets/chamber.obj?url';
+import fanUrl from './assets/fan.obj?url';
 import type { Sun } from './sun';
+import { quatn } from 'wgpu-matrix';
 
 const fogStart = 1;
 const fogEnd = 25;
 const volumetricSteps = 32;
 const fogColor = d.vec3f(0.4, 0.4, 0.55);
+// TODO: Preload in parallel
 const chamberMesh = await wf.meshAsset({ url: chamberUrl }).preload();
+const fanMesh = await wf.meshAsset({ url: fanUrl }).preload();
+
+const FanTag = trait();
 
 const layout = tgpu
   .bindGroupLayout({
@@ -189,6 +195,14 @@ export function createChamber(root: TgpuRoot, world: World, sun: Sun) {
     ...ChamberMaterial.Bundle({ albedo: d.vec3f(1) }),
   );
 
+  // Fans
+  world.spawn(
+    FanTag,
+    wf.MeshTrait(fanMesh),
+    wf.TransformTrait({ position: d.vec3f(0, 12, 0), scale: d.vec3f(2) }),
+    ...ChamberMaterial.Bundle({ albedo: d.vec3f(1) }),
+  );
+
   return {
     update() {
       timeUniform.write((performance.now() / 1000) % 1000);
@@ -200,6 +214,16 @@ export function createChamber(root: TgpuRoot, world: World, sun: Sun) {
         const cameraTransform = wf.getOrThrow(cameraEntity, wf.TransformTrait);
         cameraPosUniform.write(cameraTransform.position);
       }
+
+      world.query(FanTag, wf.TransformTrait).updateEach(([transform]) => {
+        quatn.fromEuler(
+          0,
+          performance.now() * 0.001,
+          0,
+          'xyz',
+          transform.rotation,
+        );
+      });
     },
   };
 }
