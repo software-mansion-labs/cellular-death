@@ -1,15 +1,91 @@
 import './style.css';
 
 import tgpu from 'typegpu';
-import * as d from 'typegpu/data';
 import * as wf from 'wayfare';
-import { createTerrarium } from './terrarium.ts';
+import { createCameraRig } from './cameraRig.ts';
+import { createChamber } from './chamber.ts';
 import { createInputManager } from './inputManager.ts';
+import { createSun } from './sun.ts';
+import { createTerrarium } from './terrarium.ts';
+import * as Tone from 'tone';
 
-const floorMesh = wf.createRectangleMesh({
-  width: d.vec3f(10, 0, 0),
-  height: d.vec3f(0, 0, -10),
-});
+let showingTitleScreen = true;
+
+function initButtons() {
+  // sound and music
+  const clickSfx = new Tone.Player("assets/sfx/ambient-snare.mp3").toDestination();
+  const backgroudMusic =  new Tone.Player("assets/sfx/background-music.mp3").toDestination();
+  backgroudMusic.loop = true;
+
+  // biome-ignore lint/style/noNonNullAssertion: it's fine
+  const titleScreen = document.getElementById('titleScreen')!;
+  if (!titleScreen) throw new Error('titleScreen not found');
+  // biome-ignore lint/style/noNonNullAssertion: it's fine
+  const startButton = document.getElementById('startButton')!;
+  if (!startButton) throw new Error('startButton not found');
+
+  function updateUI() {
+    if (showingTitleScreen) {
+      titleScreen.dataset.state = 'shown';
+    } else {
+      titleScreen.dataset.state = 'hidden';
+    }
+  }
+  updateUI();
+
+  startButton.addEventListener('click', () => {
+    showingTitleScreen = false;
+    updateUI();
+
+    // setup Tone
+    Tone.start();
+
+    // play the clickSfx
+    Tone.loaded().then(() => { 
+      clickSfx.start(); 
+      clickSfx.onstop = () => backgroudMusic.start();
+    } );
+
+  });
+
+  // Pause menu
+  document.addEventListener('keydown', (event) => {
+    if (event.code === 'Escape') {
+      showingTitleScreen = true;
+      updateUI();
+    }
+  });
+
+  // mute button
+  const muteButton = document.getElementById('muteButton');
+  const unmutedIcon = muteButton?.querySelector('.unmuted');
+  const mutedIcon = muteButton?.querySelector('.muted');
+  mutedIcon?.setAttribute('style', 'display: none');
+
+  let isMuted = false;
+
+  muteButton?.addEventListener('click', () => {
+    isMuted = !isMuted;
+    if (isMuted) {
+      unmutedIcon?.setAttribute('style', 'display: none');
+      mutedIcon?.setAttribute('style', 'display: block');
+    } else {
+      unmutedIcon?.setAttribute('style', 'display: block');
+      mutedIcon?.setAttribute('style', 'display: none');
+    }
+  });
+
+  muteButton?.addEventListener("click", () => {
+    Tone.getDestination().mute = !Tone.getDestination().mute;
+  });
+
+  // reset button
+  const resetButton = document.getElementById('resetButton');
+
+  resetButton?.addEventListener('click', () => {
+    console.log('Reset clicked');
+  });
+}
 
 async function initGame() {
   const root = await tgpu.init({
@@ -32,36 +108,29 @@ async function initGame() {
   resizeCanvas(canvas);
   window.addEventListener('resize', () => resizeCanvas(canvas));
 
+  initButtons();
+
   const world = engine.world;
 
-  // Camera
-  world.spawn(
-    wf.PerspectiveCamera({
-      fov: 70,
-      clearColor: d.vec4f(0.1, 0.1, 0.4, 1),
-      near: 0.1,
-      far: 100,
-    }),
-    wf.ActiveCameraTag,
-    wf.TransformTrait({ position: d.vec3f(0, 0, 0) }),
-  );
+  // Attaches input controls to the canvas
+  createInputManager(world, canvas);
 
-  // Floor
-  world.spawn(
-    wf.MeshTrait(floorMesh),
-    wf.TransformTrait({ position: d.vec3f(0, -5, -10) }),
-    ...wf.BlinnPhongMaterial.Bundle({ albedo: d.vec3f(0.7, 0.5, 0.3) }),
-  );
+  const sun = createSun(root, engine);
+
+  // Chamber
+  const chamber = createChamber(root, world, sun);
 
   // Terrarium
   const terrarium = createTerrarium(root, world);
 
-
-  // Attaches
-  createInputManager(world, canvas);
+  // Camera rig
+  const cameraRig = createCameraRig(world);
 
   engine.run(() => {
+    cameraRig.update();
     terrarium.update();
+    sun.update();
+    chamber.update();
   });
 }
 

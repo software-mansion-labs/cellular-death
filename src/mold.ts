@@ -1,6 +1,6 @@
 import { randf } from '@typegpu/noise';
 import type { World } from 'koota';
-import tgpu, { prepareDispatch, type TgpuRoot } from 'typegpu';
+import tgpu, { type TgpuRoot, type TgpuTextureView } from 'typegpu';
 import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import * as wf from 'wayfare';
@@ -11,16 +11,25 @@ const BLUR_WORKGROUP_SIZE = [4, 4, 4];
 
 const RANDOM_DIRECTION_WEIGHT = 0.3;
 const CENTER_BIAS_WEIGHT = 0.7;
+const GRAVITY_STRENGTH = 2;
 
-const DEFAULT_MOVE_SPEED = 30.0;
-const DEFAULT_SENSOR_ANGLE = 0.5;
-const DEFAULT_SENSOR_DISTANCE = 9.0;
-const DEFAULT_TURN_SPEED = 10.0;
-const DEFAULT_EVAPORATION_RATE = 0.05;
+const INACTIVE_POSITION = d.vec3f(-9999);
+const DEATH_TIME_THRESHOLD = 3.0;
+const DENSITY_CHECK_THRESHOLD = 0.01;
+const MAX_LIFETIME = 30.0;
+
+const DEFAULT_MOVE_SPEED = 50.0;
+const DEFAULT_SENSOR_ANGLE = 1;
+const DEFAULT_SENSOR_DISTANCE = 4.0;
+const DEFAULT_TURN_SPEED = 30.0;
+const DEFAULT_EVAPORATION_RATE = 0.04;
 
 const Agent = d.struct({
   position: d.vec3f,
   direction: d.vec3f,
+  isActive: d.f32,
+  timeSinceContact: d.f32,
+  totalLifetime: d.f32,
 });
 
 const Params = d.struct({
@@ -30,24 +39,44 @@ const Params = d.struct({
   sensorDistance: d.f32,
   turnSpeed: d.f32,
   evaporationRate: d.f32,
+  gravityDir: d.vec3f,
 });
 
-export function createMoldSim(root: TgpuRoot, volumeSize: number) {
+const SpawnerConfig = d.struct({
+  spawnPoint: d.vec3f,
+  spawnRate: d.f32,
+  targetCount: d.u32,
+});
+
+const SpawnRange = d.struct({
+  startIndex: d.u32,
+  endIndex: d.u32,
+});
+
+export function createMoldSim(
+  root: TgpuRoot,
+  volumeSize: number,
+  terrainTexture: TgpuTextureView<
+    d.WgslStorageTexture3d<'r32float', 'read-only'>
+  >,
+  spawnerConfig?: {
+    spawnPoint?: d.v3f;
+    spawnRate?: number;
+    targetCount?: number;
+  },
+) {
   const resolution = d.vec3f(volumeSize);
 
   const agentsData = root.createMutable(d.arrayOf(Agent, NUM_AGENTS));
 
-  prepareDispatch(root, (x) => {
-    'kernel';
-    randf.seed(x / NUM_AGENTS);
-    const pos = randf
-      .inUnitSphere()
-      .mul(resolution.x / 4)
-      .add(resolution.div(2));
-    const center = resolution.div(2);
-    const dir = std.normalize(center.sub(pos));
-    agentsData.$[x] = Agent({ position: pos, direction: dir });
-  }).dispatch(NUM_AGENTS);
+  const spawnPoint = spawnerConfig?.spawnPoint ?? resolution.div(2);
+  const spawnRate = spawnerConfig?.spawnRate ?? 10000;
+  const targetCount = spawnerConfig?.targetCount ?? NUM_AGENTS;
+
+  const spawnRange = root.createUniform(SpawnRange, {
+    startIndex: 0,
+    endIndex: 0,
+  });
 
   const params = root.createUniform(Params, {
     deltaTime: 0,
@@ -56,21 +85,95 @@ export function createMoldSim(root: TgpuRoot, volumeSize: number) {
     sensorDistance: DEFAULT_SENSOR_DISTANCE,
     turnSpeed: DEFAULT_TURN_SPEED,
     evaporationRate: DEFAULT_EVAPORATION_RATE,
+    gravityDir: d.vec3f(0, -1, 0),
   });
+
+  const spawner = root.createUniform(SpawnerConfig, {
+    spawnPoint,
+    spawnRate,
+    targetCount,
+  });
+
+  let activeAgentCount = 0;
+  let spawnAccumulator = 0;
 
   const textures = [0, 1].map(() =>
     root['~unstable']
       .createTexture({
         size: [resolution.x, resolution.y, resolution.z],
-        format: 'r32float',
+        format: 'rg32float',
         dimension: '3d',
       })
       .$usage('sampled', 'storage'),
   );
 
+  const initAgents = tgpu['~unstable'].computeFn({
+    in: { gid: d.builtin.globalInvocationId },
+    workgroupSize: [AGENT_WORKGROUP_SIZE],
+  })(({ gid }) => {
+    if (gid.x >= NUM_AGENTS) {
+      return;
+    }
+    agentsData.$[gid.x] = Agent({
+      position: INACTIVE_POSITION,
+      direction: d.vec3f(0, 1, 0),
+      isActive: 0,
+      timeSinceContact: 0,
+      totalLifetime: 0,
+    });
+  });
+
+  const spawnAgents = tgpu['~unstable'].computeFn({
+    in: { gid: d.builtin.globalInvocationId },
+    workgroupSize: [AGENT_WORKGROUP_SIZE],
+  })(({ gid }) => {
+    if (gid.x >= spawnRange.$.endIndex) {
+      return;
+    }
+    if (gid.x >= spawnRange.$.startIndex && gid.x < spawnRange.$.endIndex) {
+      randf.seed(gid.x / NUM_AGENTS);
+      const randomOffset = randf.inUnitSphere().mul(5);
+      const pos = spawner.$.spawnPoint.add(randomOffset);
+      const center = resolution.div(2);
+      const dir = std.normalize(center.sub(pos));
+      agentsData.$[gid.x] = Agent({
+        position: pos,
+        direction: dir,
+        isActive: 1,
+        timeSinceContact: 0,
+        totalLifetime: 0,
+      });
+    }
+  });
+
+  const respawnAgents = tgpu['~unstable'].computeFn({
+    in: { gid: d.builtin.globalInvocationId },
+    workgroupSize: [AGENT_WORKGROUP_SIZE],
+  })(({ gid }) => {
+    if (gid.x >= spawnRange.$.endIndex) {
+      return;
+    }
+    const agent = agentsData.$[gid.x];
+    if (gid.x < spawnRange.$.endIndex && agent.isActive < 0.5) {
+      randf.seed(gid.x / NUM_AGENTS + 0.5);
+      const randomOffset = randf.inUnitSphere().mul(5);
+      const pos = spawner.$.spawnPoint.add(randomOffset);
+      const center = resolution.div(2);
+      const dir = std.normalize(center.sub(pos));
+      agentsData.$[gid.x] = Agent({
+        position: pos,
+        direction: dir,
+        isActive: 1,
+        timeSinceContact: 0,
+        totalLifetime: 0,
+      });
+    }
+  });
+
   const computeLayout = tgpu.bindGroupLayout({
-    oldState: { storageTexture: d.textureStorage3d('r32float', 'read-only') },
-    newState: { storageTexture: d.textureStorage3d('r32float', 'write-only') },
+    oldState: { storageTexture: d.textureStorage3d('rg32float', 'read-only') },
+    newState: { storageTexture: d.textureStorage3d('rg32float', 'write-only') },
+    terrain: { storageTexture: d.textureStorage3d('r32float', 'read-only') },
   });
 
   const SenseResult = d.struct({
@@ -94,6 +197,46 @@ export function createMoldSim(root: TgpuRoot, volumeSize: number) {
     }
 
     return std.normalize(std.cross(dir, axis));
+  };
+
+  const getTerrainNormal = (pos: d.v3f, dimsf: d.v3f) => {
+    'kernel';
+    const offset = d.f32(2);
+    const bounds = d.vec3f();
+    const maxBounds = dimsf.sub(d.vec3f(1));
+
+    const px = std.textureLoad(
+      computeLayout.$.terrain,
+      d.vec3u(std.clamp(pos.add(d.vec3f(offset, 0, 0)), bounds, maxBounds)),
+    ).x;
+    const nx = std.textureLoad(
+      computeLayout.$.terrain,
+      d.vec3u(std.clamp(pos.add(d.vec3f(-offset, 0, 0)), bounds, maxBounds)),
+    ).x;
+    const py = std.textureLoad(
+      computeLayout.$.terrain,
+      d.vec3u(std.clamp(pos.add(d.vec3f(0, offset, 0)), bounds, maxBounds)),
+    ).x;
+    const ny = std.textureLoad(
+      computeLayout.$.terrain,
+      d.vec3u(std.clamp(pos.add(d.vec3f(0, -offset, 0)), bounds, maxBounds)),
+    ).x;
+    const pz = std.textureLoad(
+      computeLayout.$.terrain,
+      d.vec3u(std.clamp(pos.add(d.vec3f(0, 0, offset)), bounds, maxBounds)),
+    ).x;
+    const nz = std.textureLoad(
+      computeLayout.$.terrain,
+      d.vec3u(std.clamp(pos.add(d.vec3f(0, 0, -offset)), bounds, maxBounds)),
+    ).x;
+
+    const gradient = d.vec3f(px - nx, py - ny, pz - nz);
+
+    return std.select(
+      d.vec3f(0, 1, 0),
+      std.normalize(gradient),
+      std.length(gradient) > 0.001,
+    );
   };
 
   const sense3D = (pos: d.v3f, direction: d.v3f) => {
@@ -125,8 +268,15 @@ export function createMoldSim(root: TgpuRoot, volumeSize: number) {
 
       const weight = std.textureLoad(computeLayout.$.oldState, sensorPosInt).x;
 
-      weightedDir = weightedDir.add(sensorDir.mul(weight));
-      totalWeight = totalWeight + weight;
+      // Check if sensor position hits terrain
+      const terrainValue = std.textureLoad(
+        computeLayout.$.terrain,
+        sensorPosInt,
+      ).x;
+      const terrainPenalty = std.select(1.0, 0.01, terrainValue > 0.07);
+
+      weightedDir = weightedDir.add(sensorDir.mul(weight * terrainPenalty));
+      totalWeight = totalWeight + weight * terrainPenalty;
     }
 
     return SenseResult({ weightedDir, totalWeight });
@@ -140,12 +290,17 @@ export function createMoldSim(root: TgpuRoot, volumeSize: number) {
       return;
     }
 
+    const agent = agentsData.$[gid.x];
+
+    if (agent.isActive < 0.5) {
+      return;
+    }
+
     randf.seed(gid.x / NUM_AGENTS + 0.1);
 
     const dims = std.textureDimensions(computeLayout.$.oldState);
     const dimsf = d.vec3f(dims);
 
-    const agent = agentsData.$[gid.x];
     const random = randf.sample();
 
     let direction = std.normalize(agent.direction);
@@ -164,9 +319,41 @@ export function createMoldSim(root: TgpuRoot, volumeSize: number) {
       direction = std.normalize(direction.add(randomOffset));
     }
 
-    const newPos = agent.position.add(
-      direction.mul(params.$.moveSpeed * params.$.deltaTime),
+    // Predictive collision detection - check ahead of agent
+    const moveDistance = params.$.moveSpeed * params.$.deltaTime;
+    const lookAheadDistance = moveDistance * 2.0;
+    const lookAheadPos = agent.position.add(direction.mul(lookAheadDistance));
+
+    const terrainValue = std.textureLoad(
+      computeLayout.$.terrain,
+      d.vec3u(std.clamp(lookAheadPos, d.vec3f(), dimsf.sub(d.vec3f(1)))),
+    ).x;
+
+    if (terrainValue > 0.07) {
+      const terrainNormal = getTerrainNormal(lookAheadPos, dimsf);
+      const reflectedDir = direction.sub(
+        terrainNormal.mul(2.0 * std.dot(direction, terrainNormal)),
+      );
+
+      const randomOffset = randf.inUnitSphere().mul(0.2);
+      direction = std.normalize(reflectedDir.add(randomOffset));
+    }
+
+    const gravityInfluence = params.$.gravityDir.mul(
+      GRAVITY_STRENGTH * params.$.deltaTime,
     );
+    direction = std.normalize(direction.add(gravityInfluence));
+
+    let newPos = agent.position.add(direction.mul(moveDistance));
+
+    const finalTerrainCheck = std.textureLoad(
+      computeLayout.$.terrain,
+      d.vec3u(std.clamp(newPos, d.vec3f(), dimsf.sub(d.vec3f(1)))),
+    ).x;
+    if (finalTerrainCheck > 0.07) {
+      const terrainNormal = getTerrainNormal(newPos, dimsf);
+      newPos = agent.position.add(terrainNormal.mul(1.0));
+    }
 
     const center = dimsf.div(2);
 
@@ -214,20 +401,47 @@ export function createMoldSim(root: TgpuRoot, volumeSize: number) {
       );
     }
 
+    const oldStateVec = std.textureLoad(
+      computeLayout.$.oldState,
+      d.vec3u(newPos),
+    );
+    const oldDensity = oldStateVec.x;
+    const oldLifetime = oldStateVec.y;
+
+    let newTimeSinceContact = agent.timeSinceContact + params.$.deltaTime;
+    const newTotalLifetime = agent.totalLifetime + params.$.deltaTime;
+
+    if (oldDensity > DENSITY_CHECK_THRESHOLD) {
+      newTimeSinceContact = 0;
+    }
+
+    let newIsActive = d.f32(1);
+    if (
+      newTimeSinceContact > DEATH_TIME_THRESHOLD ||
+      newTotalLifetime > MAX_LIFETIME
+    ) {
+      newIsActive = 0;
+    }
+
     agentsData.$[gid.x] = Agent({
       position: newPos,
       direction,
+      isActive: newIsActive,
+      timeSinceContact: newTimeSinceContact,
+      totalLifetime: newTotalLifetime,
     });
 
-    const oldState = std.textureLoad(
-      computeLayout.$.oldState,
-      d.vec3u(newPos),
-    ).x;
-    const newState = oldState + 1;
+    const newDensity = oldDensity + 1;
+    const normalizedLifetime = std.saturate(newTotalLifetime / MAX_LIFETIME);
+    const blendedLifetime = std.select(
+      normalizedLifetime,
+      (oldLifetime * oldDensity + normalizedLifetime) / newDensity,
+      oldDensity > 0.1,
+    );
     std.textureStore(
       computeLayout.$.newState,
       d.vec3u(newPos),
-      d.vec4f(newState, 0, 0, 1),
+      d.vec4f(newDensity, blendedLifetime, 0, 1),
     );
   });
 
@@ -257,25 +471,45 @@ export function createMoldSim(root: TgpuRoot, volumeSize: number) {
             samplePos.z >= 0 &&
             samplePos.z < dimsi.z
           ) {
-            const value = std.textureLoad(
+            const valueVec = std.textureLoad(
               computeLayout.$.oldState,
               d.vec3u(samplePos),
-            ).x;
-            sum = sum + value;
+            );
+            sum = sum + valueVec.x;
             count = count + 1;
           }
         }
       }
     }
 
-    const blurred = sum / count;
-    const newValue = std.saturate(blurred - params.$.evaporationRate);
+    const blurredDensity = sum / count;
+    const newDensity = std.saturate(blurredDensity - params.$.evaporationRate);
+
+    const centerValue = std.textureLoad(computeLayout.$.oldState, gid.xyz);
+    let lifetime = centerValue.y;
+
+    if (newDensity < 0.01) {
+      lifetime = 0;
+    }
+
     std.textureStore(
       computeLayout.$.newState,
       gid.xyz,
-      d.vec4f(newValue, 0, 0, 1),
+      d.vec4f(newDensity, lifetime, 0, 1),
     );
   });
+
+  const initPipeline = root['~unstable']
+    .withCompute(initAgents)
+    .createPipeline();
+
+  const spawnPipeline = root['~unstable']
+    .withCompute(spawnAgents)
+    .createPipeline();
+
+  const respawnPipeline = root['~unstable']
+    .withCompute(respawnAgents)
+    .createPipeline();
 
   const computePipeline = root['~unstable']
     .withCompute(updateAgents)
@@ -287,8 +521,12 @@ export function createMoldSim(root: TgpuRoot, volumeSize: number) {
     root.createBindGroup(computeLayout, {
       oldState: textures[i],
       newState: textures[1 - i],
+      terrain: terrainTexture,
     }),
   );
+
+  initPipeline.dispatchWorkgroups(Math.ceil(NUM_AGENTS / AGENT_WORKGROUP_SIZE));
+  root['~unstable'].flush();
 
   let currentTexture = 0;
 
@@ -297,10 +535,39 @@ export function createMoldSim(root: TgpuRoot, volumeSize: number) {
     get currentTexture() {
       return currentTexture;
     },
-    tick(world: World) {
+    get activeAgentCount() {
+      return activeAgentCount;
+    },
+    tick(world: World, gravityDir: d.v3f) {
       const time = wf.getOrThrow(world, wf.Time);
       const deltaTime = time.deltaSeconds;
-      params.writePartial({ deltaTime });
+      params.writePartial({ deltaTime, gravityDir });
+
+      if (activeAgentCount < targetCount) {
+        spawnAccumulator += deltaTime * spawnRate;
+        const toSpawn = Math.floor(spawnAccumulator);
+
+        if (toSpawn > 0) {
+          const newActiveCount = Math.min(
+            activeAgentCount + toSpawn,
+            targetCount,
+          );
+
+          if (newActiveCount > 0) {
+            spawnRange.write({
+              startIndex: activeAgentCount,
+              endIndex: newActiveCount,
+            });
+            spawnPipeline.dispatchWorkgroups(
+              Math.ceil(newActiveCount / AGENT_WORKGROUP_SIZE),
+            );
+            root['~unstable'].flush();
+          }
+
+          activeAgentCount = newActiveCount;
+          spawnAccumulator -= toSpawn;
+        }
+      }
 
       blurPipeline
         .with(computeLayout, bindGroups[currentTexture])
@@ -313,6 +580,16 @@ export function createMoldSim(root: TgpuRoot, volumeSize: number) {
       computePipeline
         .with(computeLayout, bindGroups[currentTexture])
         .dispatchWorkgroups(Math.ceil(NUM_AGENTS / AGENT_WORKGROUP_SIZE));
+
+      if (activeAgentCount > 0) {
+        spawnRange.write({
+          startIndex: 0,
+          endIndex: activeAgentCount,
+        });
+        respawnPipeline.dispatchWorkgroups(
+          Math.ceil(activeAgentCount / AGENT_WORKGROUP_SIZE),
+        );
+      }
 
       root['~unstable'].flush();
 

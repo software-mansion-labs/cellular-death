@@ -7,7 +7,37 @@
         <title>Cellular Death</title>
     </head>
     <body>
-        <canvas id="canvas"><canvas>
+        <canvas id="canvas"></canvas>
+        <div
+            id="titleScreen"
+            class="absolute inset-0 bg-black/60 flex flex-col items-center pt-[30vh] text-white font-sans opacity-100 transition-opacity duration-1000 data-[state=hidden]:opacity-0 data-[state=hidden]:pointer-events-none"
+        >
+            <h1>Cellular Death</h1>
+            <button id="startButton">Begin the experiment</button>
+        </div>
+        <div id="menuButtons">
+            <button id="resetButton">
+                <img
+                    src="/assets/icons/refresh-svgrepo-com.svg"
+                    alt="Reset"
+                    draggable="false"
+                />
+            </button>
+            <button id="muteButton">
+                <img
+                    class="unmuted"
+                    src="/assets/icons/audio-svgrepo-com.svg"
+                    alt="Mute"
+                    draggable="false"
+                />
+                <img
+                    class="muted"
+                    src="/assets/icons/mute-svgrepo-com.svg"
+                    alt="Unmute"
+                    draggable="false"
+                />
+            </button>
+        </div>
         <script type="module" src="/src/main.ts"></script>
     </body>
 </html>
