@@ -5,14 +5,14 @@ import tgpu from 'typegpu';
 import * as wf from 'wayfare';
 import { createCameraRig } from './cameraRig.ts';
 import { createChamber } from './chamber.ts';
+import { getDialogBox } from './dialogBox.ts';
+import { level1dialogue } from './dialogue.ts';
 import { createInputManager } from './inputManager.ts';
 import { LEVELS } from './levels.ts';
 import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
-import { getDialogBox } from './dialogBox.ts';
-import { level1dialogue } from './dialogue.ts';
 
-let quality: 'low' | 'high' | 'ultra' = 'high';
+const quality: 'low' | 'high' | 'ultra' = 'ultra';
 let showingTitleScreen = true;
 let pauseMenuVariant = false;
 

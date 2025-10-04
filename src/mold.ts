@@ -16,7 +16,9 @@ const GRAVITY_STRENGTH = 3;
 const INACTIVE_POSITION = d.vec3f(-9999);
 const DEATH_TIME_THRESHOLD = 3.0;
 const DENSITY_CHECK_THRESHOLD = 0.01;
-const MAX_LIFETIME = 5.0;
+const INITIAL_MAX_LIFETIME = 2.0;
+const CREATURE_EAT_RADIUS = 3.0;
+const LIFETIME_PER_CREATURE = 1.0;
 const GOAL_CHECK_RADIUS = 5.0;
 const GOAL_DENSITY_THRESHOLD = 100.0;
 const RAPID_AGING_MULTIPLIER = 5.0;
@@ -35,6 +37,11 @@ const Agent = d.struct({
   isActive: d.f32,
   timeSinceContact: d.f32,
   totalLifetime: d.f32,
+});
+
+const CreatureState = d.struct({
+  position: d.vec3f,
+  eaten: d.atomic(d.u32),
 });
 
 const Params = d.struct({
@@ -76,6 +83,7 @@ export function createMoldSim(
     targetCount?: number;
   },
   goalPosition?: d.v3f,
+  creaturePositions: d.v3f[] = [],
 ) {
   const resolution = d.vec3f(volumeSize);
 
@@ -95,6 +103,21 @@ export function createMoldSim(
       goalPosition ?? d.vec3f(volumeSize / 2, volumeSize - 10, volumeSize / 2),
     reached: 0,
   });
+
+  const MAX_CREATURES = 10;
+  const creatures = root.createMutable(
+    d.arrayOf(CreatureState, MAX_CREATURES),
+    Array.from({ length: MAX_CREATURES }, (_, i) =>
+      i < creaturePositions.length
+        ? { position: creaturePositions[i].mul(volumeSize), eaten: 0 }
+        : { position: d.vec3f(-9999), eaten: 1 },
+    ),
+  );
+  const creatureCount = root.createUniform(d.u32, creaturePositions.length);
+  const maxLifetime = root.createMutable(
+    d.atomic(d.u32),
+    Math.floor(INITIAL_MAX_LIFETIME * 1000),
+  );
 
   const params = root.createUniform(Params, {
     deltaTime: 0,
@@ -453,11 +476,32 @@ export function createMoldSim(
     }
 
     let newIsActive = d.f32(1);
+    const maxLifetimeSeconds = d.f32(std.atomicLoad(maxLifetime.$)) / 1000.0;
     if (
       newTimeSinceContact > DEATH_TIME_THRESHOLD ||
-      newTotalLifetime > MAX_LIFETIME
+      newTotalLifetime > maxLifetimeSeconds
     ) {
       newIsActive = 0;
+    }
+
+    if (newIsActive > 0) {
+      for (let i = d.u32(0); i < creatureCount.$; i = i + 1) {
+        const creatureEaten = std.atomicLoad(creatures.$[i].eaten);
+        if (creatureEaten === 0) {
+          const distToCreature = std.length(
+            newPos.sub(creatures.$[i].position),
+          );
+          if (distToCreature < CREATURE_EAT_RADIUS) {
+            const wasAlreadyEaten = std.atomicLoad(creatures.$[i].eaten);
+            if (wasAlreadyEaten === 0) {
+              std.atomicStore(creatures.$[i].eaten, 1);
+              const lifetimeIncrement = d.u32(LIFETIME_PER_CREATURE * 1000);
+              std.atomicAdd(maxLifetime.$, lifetimeIncrement);
+            }
+            break;
+          }
+        }
+      }
     }
 
     agentsData.$[gid.x] = Agent({
@@ -469,7 +513,9 @@ export function createMoldSim(
     });
 
     const newDensity = oldDensity + 1;
-    const normalizedLifetime = std.saturate(newTotalLifetime / MAX_LIFETIME);
+    const normalizedLifetime = std.saturate(
+      newTotalLifetime / maxLifetimeSeconds,
+    );
     const blendedLifetime = std.select(
       normalizedLifetime,
       (oldLifetime * oldDensity + normalizedLifetime) / newDensity,
@@ -633,6 +679,16 @@ export function createMoldSim(
       tex.clear();
     }
 
+    if (creaturePositions.length > 0) {
+      creatures.write(
+        creaturePositions.map((pos) => ({
+          position: pos.mul(volumeSize),
+          eaten: 0,
+        })),
+      );
+    }
+    maxLifetime.write(Math.floor(INITIAL_MAX_LIFETIME * 1000));
+
     initPipeline.dispatchWorkgroups(
       Math.ceil(NUM_AGENTS / AGENT_WORKGROUP_SIZE),
     );
@@ -641,6 +697,7 @@ export function createMoldSim(
 
   return {
     textures,
+    creatures,
     get currentTexture() {
       return currentTexture;
     },
@@ -657,6 +714,17 @@ export function createMoldSim(
     setGoalPosition(newPosition: d.v3f) {
       goal.write({ position: newPosition, reached: 0 });
       goalReached = false;
+    },
+    setCreatures(positions: d.v3f[]) {
+      creatures.write(
+        Array.from({ length: MAX_CREATURES }, (_, i) =>
+          i < positions.length
+            ? { position: positions[i].mul(volumeSize), eaten: 0 }
+            : { position: d.vec3f(-9999, -9999, -9999), eaten: 1 },
+        ),
+      );
+      creatureCount.write(positions.length);
+      maxLifetime.write(Math.floor(INITIAL_MAX_LIFETIME * 1000));
     },
     tick(world: World, gravityDir: d.v3f) {
       const time = wf.getOrThrow(world, wf.Time);
