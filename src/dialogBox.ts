@@ -84,6 +84,6 @@ class DialogBox {
       return;
     }
     dialogElement.dataset.state = "visible";
-    dialogElement.innerText = message + "\u00A0";
+    dialogElement.innerText = message.replaceAll("_", "") + "\u00A0";
   }
 }
