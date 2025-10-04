@@ -61,11 +61,6 @@ const SpawnerConfig = d.struct({
   targetCount: d.u32,
 });
 
-const SpawnRange = d.struct({
-  startIndex: d.u32,
-  endIndex: d.u32,
-});
-
 const GoalConfig = d.struct({
   position: d.vec3f,
   reached: d.u32,
@@ -93,10 +88,7 @@ export function createMoldSim(
   const spawnRate = spawnerConfig?.spawnRate ?? 10000;
   const targetCount = spawnerConfig?.targetCount ?? NUM_AGENTS;
 
-  const spawnRange = root.createUniform(SpawnRange, {
-    startIndex: 0,
-    endIndex: 0,
-  });
+  const activeAgentCountBuffer = root.createMutable(d.u32, 0);
 
   const goal = root.createMutable(GoalConfig, {
     position:
@@ -167,39 +159,16 @@ export function createMoldSim(
     });
   });
 
-  const spawnAgents = tgpu['~unstable'].computeFn({
+  const spawnOrRespawnAgents = tgpu['~unstable'].computeFn({
     in: { gid: d.builtin.globalInvocationId },
     workgroupSize: [AGENT_WORKGROUP_SIZE],
   })(({ gid }) => {
-    if (gid.x >= spawnRange.$.endIndex) {
-      return;
-    }
-    if (gid.x >= spawnRange.$.startIndex && gid.x < spawnRange.$.endIndex) {
-      randf.seed(gid.x / NUM_AGENTS);
-      const randomOffset = randf.inUnitSphere().mul(5);
-      const pos = spawner.$.spawnPoint.add(randomOffset);
-      const center = resolution.div(2);
-      const dir = std.normalize(center.sub(pos));
-      agentsData.$[gid.x] = Agent({
-        position: pos,
-        direction: dir,
-        isActive: 1,
-        timeSinceContact: 0,
-        totalLifetime: 0,
-      });
-    }
-  });
-
-  const respawnAgents = tgpu['~unstable'].computeFn({
-    in: { gid: d.builtin.globalInvocationId },
-    workgroupSize: [AGENT_WORKGROUP_SIZE],
-  })(({ gid }) => {
-    if (gid.x >= spawnRange.$.endIndex) {
+    if (gid.x >= activeAgentCountBuffer.$) {
       return;
     }
     const agent = agentsData.$[gid.x];
-    if (gid.x < spawnRange.$.endIndex && agent.isActive < 0.5) {
-      randf.seed(gid.x / NUM_AGENTS + 0.5);
+    if (agent.isActive < 0.5) {
+      randf.seed(gid.x / NUM_AGENTS + params.$.deltaTime);
       const randomOffset = randf.inUnitSphere().mul(5);
       const pos = spawner.$.spawnPoint.add(randomOffset);
       const center = resolution.div(2);
@@ -630,13 +599,8 @@ export function createMoldSim(
   const initPipeline = root['~unstable']
     .withCompute(initAgents)
     .createPipeline();
-
   const spawnPipeline = root['~unstable']
-    .withCompute(spawnAgents)
-    .createPipeline();
-
-  const respawnPipeline = root['~unstable']
-    .withCompute(respawnAgents)
+    .withCompute(spawnOrRespawnAgents)
     .createPipeline();
 
   const computePipeline = root['~unstable']
@@ -738,27 +702,15 @@ export function createMoldSim(
 
       if (activeAgentCount < targetCount) {
         spawnAccumulator += deltaTime * spawnRate;
-        const toSpawn = Math.floor(spawnAccumulator);
+        const toSpawn = Math.min(
+          Math.floor(spawnAccumulator),
+          targetCount - activeAgentCount,
+        );
 
         if (toSpawn > 0) {
-          const newActiveCount = Math.min(
-            activeAgentCount + toSpawn,
-            targetCount,
-          );
-
-          if (newActiveCount > 0) {
-            spawnRange.write({
-              startIndex: activeAgentCount,
-              endIndex: newActiveCount,
-            });
-            spawnPipeline.dispatchWorkgroups(
-              Math.ceil(newActiveCount / AGENT_WORKGROUP_SIZE),
-            );
-            root['~unstable'].flush();
-          }
-
-          activeAgentCount = newActiveCount;
+          activeAgentCount += toSpawn;
           spawnAccumulator -= toSpawn;
+          activeAgentCountBuffer.write(activeAgentCount);
         }
       }
 
@@ -775,11 +727,7 @@ export function createMoldSim(
         .dispatchWorkgroups(Math.ceil(NUM_AGENTS / AGENT_WORKGROUP_SIZE));
 
       if (activeAgentCount > 0) {
-        spawnRange.write({
-          startIndex: 0,
-          endIndex: activeAgentCount,
-        });
-        respawnPipeline.dispatchWorkgroups(
+        spawnPipeline.dispatchWorkgroups(
           Math.ceil(activeAgentCount / AGENT_WORKGROUP_SIZE),
         );
       }
