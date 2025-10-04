@@ -5,9 +5,6 @@ type MeshData = {
   vertices: { pos: d.v3f; normal: d.v3f; uv: d.v2f }[];
 };
 
-/**
- * Creates a UV sphere mesh with the given radius and subdivisions.
- */
 export function createSphereMesh(
   radius: number,
   segments = 16,
@@ -17,10 +14,8 @@ export function createSphereMesh(
     vertices: [],
   };
 
-  // Generate sphere as triangles
   for (let ring = 0; ring < rings; ring++) {
     for (let segment = 0; segment < segments; segment++) {
-      // Calculate the four corners of this quad
       const vertices: Array<{
         pos: d.v3f;
         normal: d.v3f;
@@ -59,12 +54,10 @@ export function createSphereMesh(
         }
       }
 
-      // First triangle: [0, 2, 3]
       data.vertices.push(vertices[0]);
       data.vertices.push(vertices[2]);
       data.vertices.push(vertices[3]);
 
-      // Second triangle: [0, 3, 1]
       data.vertices.push(vertices[0]);
       data.vertices.push(vertices[3]);
       data.vertices.push(vertices[1]);
