@@ -1,10 +1,6 @@
 import { randf } from '@typegpu/noise';
 import type { World } from 'koota';
-import tgpu, {
-  prepareDispatch,
-  type TgpuRoot,
-  type TgpuTextureView,
-} from 'typegpu';
+import tgpu, { type TgpuRoot, type TgpuTextureView } from 'typegpu';
 import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import * as wf from 'wayfare';
@@ -52,6 +48,11 @@ const SpawnerConfig = d.struct({
   targetCount: d.u32,
 });
 
+const SpawnRange = d.struct({
+  startIndex: d.u32,
+  endIndex: d.u32,
+});
+
 export function createMoldSim(
   root: TgpuRoot,
   volumeSize: number,
@@ -72,16 +73,10 @@ export function createMoldSim(
   const spawnRate = spawnerConfig?.spawnRate ?? 10000;
   const targetCount = spawnerConfig?.targetCount ?? NUM_AGENTS;
 
-  prepareDispatch(root, (x) => {
-    'kernel';
-    agentsData.$[x] = Agent({
-      position: INACTIVE_POSITION,
-      direction: d.vec3f(0, 1, 0),
-      isActive: 0,
-      timeSinceContact: 0,
-      totalLifetime: 0,
-    });
-  }).dispatch(NUM_AGENTS);
+  const spawnRange = root.createUniform(SpawnRange, {
+    startIndex: 0,
+    endIndex: 0,
+  });
 
   const params = root.createUniform(Params, {
     deltaTime: 0,
@@ -111,6 +106,69 @@ export function createMoldSim(
       })
       .$usage('sampled', 'storage'),
   );
+
+  const initAgents = tgpu['~unstable'].computeFn({
+    in: { gid: d.builtin.globalInvocationId },
+    workgroupSize: [AGENT_WORKGROUP_SIZE],
+  })(({ gid }) => {
+    if (gid.x >= NUM_AGENTS) {
+      return;
+    }
+    agentsData.$[gid.x] = Agent({
+      position: INACTIVE_POSITION,
+      direction: d.vec3f(0, 1, 0),
+      isActive: 0,
+      timeSinceContact: 0,
+      totalLifetime: 0,
+    });
+  });
+
+  const spawnAgents = tgpu['~unstable'].computeFn({
+    in: { gid: d.builtin.globalInvocationId },
+    workgroupSize: [AGENT_WORKGROUP_SIZE],
+  })(({ gid }) => {
+    if (gid.x >= spawnRange.$.endIndex) {
+      return;
+    }
+    if (gid.x >= spawnRange.$.startIndex && gid.x < spawnRange.$.endIndex) {
+      randf.seed(gid.x / NUM_AGENTS);
+      const randomOffset = randf.inUnitSphere().mul(5);
+      const pos = spawner.$.spawnPoint.add(randomOffset);
+      const center = resolution.div(2);
+      const dir = std.normalize(center.sub(pos));
+      agentsData.$[gid.x] = Agent({
+        position: pos,
+        direction: dir,
+        isActive: 1,
+        timeSinceContact: 0,
+        totalLifetime: 0,
+      });
+    }
+  });
+
+  const respawnAgents = tgpu['~unstable'].computeFn({
+    in: { gid: d.builtin.globalInvocationId },
+    workgroupSize: [AGENT_WORKGROUP_SIZE],
+  })(({ gid }) => {
+    if (gid.x >= spawnRange.$.endIndex) {
+      return;
+    }
+    const agent = agentsData.$[gid.x];
+    if (gid.x < spawnRange.$.endIndex && agent.isActive < 0.5) {
+      randf.seed(gid.x / NUM_AGENTS + 0.5);
+      const randomOffset = randf.inUnitSphere().mul(5);
+      const pos = spawner.$.spawnPoint.add(randomOffset);
+      const center = resolution.div(2);
+      const dir = std.normalize(center.sub(pos));
+      agentsData.$[gid.x] = Agent({
+        position: pos,
+        direction: dir,
+        isActive: 1,
+        timeSinceContact: 0,
+        totalLifetime: 0,
+      });
+    }
+  });
 
   const computeLayout = tgpu.bindGroupLayout({
     oldState: { storageTexture: d.textureStorage3d('rg32float', 'read-only') },
@@ -441,6 +499,18 @@ export function createMoldSim(
     );
   });
 
+  const initPipeline = root['~unstable']
+    .withCompute(initAgents)
+    .createPipeline();
+
+  const spawnPipeline = root['~unstable']
+    .withCompute(spawnAgents)
+    .createPipeline();
+
+  const respawnPipeline = root['~unstable']
+    .withCompute(respawnAgents)
+    .createPipeline();
+
   const computePipeline = root['~unstable']
     .withCompute(updateAgents)
     .createPipeline();
@@ -454,6 +524,9 @@ export function createMoldSim(
       terrain: terrainTexture,
     }),
   );
+
+  initPipeline.dispatchWorkgroups(Math.ceil(NUM_AGENTS / AGENT_WORKGROUP_SIZE));
+  root['~unstable'].flush();
 
   let currentTexture = 0;
 
@@ -481,49 +554,19 @@ export function createMoldSim(
           );
 
           if (newActiveCount > 0) {
-            prepareDispatch(root, (x) => {
-              'kernel';
-              if (x >= activeAgentCount && x < newActiveCount) {
-                randf.seed(x / NUM_AGENTS);
-                const randomOffset = randf.inUnitSphere().mul(5);
-                const pos = spawner.$.spawnPoint.add(randomOffset);
-                const center = resolution.div(2);
-                const dir = std.normalize(center.sub(pos));
-                agentsData.$[x] = Agent({
-                  position: pos,
-                  direction: dir,
-                  isActive: 1,
-                  timeSinceContact: 0,
-                  totalLifetime: 0,
-                });
-              }
-            }).dispatch(newActiveCount);
+            spawnRange.write({
+              startIndex: activeAgentCount,
+              endIndex: newActiveCount,
+            });
+            spawnPipeline.dispatchWorkgroups(
+              Math.ceil(newActiveCount / AGENT_WORKGROUP_SIZE),
+            );
+            root['~unstable'].flush();
           }
 
           activeAgentCount = newActiveCount;
           spawnAccumulator -= toSpawn;
         }
-      }
-
-      if (activeAgentCount > 0) {
-        prepareDispatch(root, (x) => {
-          'kernel';
-          const agent = agentsData.$[x];
-          if (x < activeAgentCount && agent.isActive < 0.5) {
-            randf.seed(x / NUM_AGENTS + 0.5);
-            const randomOffset = randf.inUnitSphere().mul(5);
-            const pos = spawner.$.spawnPoint.add(randomOffset);
-            const center = resolution.div(2);
-            const dir = std.normalize(center.sub(pos));
-            agentsData.$[x] = Agent({
-              position: pos,
-              direction: dir,
-              isActive: 1,
-              timeSinceContact: 0,
-              totalLifetime: 0,
-            });
-          }
-        }).dispatch(activeAgentCount);
       }
 
       blurPipeline
@@ -537,6 +580,16 @@ export function createMoldSim(
       computePipeline
         .with(computeLayout, bindGroups[currentTexture])
         .dispatchWorkgroups(Math.ceil(NUM_AGENTS / AGENT_WORKGROUP_SIZE));
+
+      if (activeAgentCount > 0) {
+        spawnRange.write({
+          startIndex: 0,
+          endIndex: activeAgentCount,
+        });
+        respawnPipeline.dispatchWorkgroups(
+          Math.ceil(activeAgentCount / AGENT_WORKGROUP_SIZE),
+        );
+      }
 
       root['~unstable'].flush();
 
