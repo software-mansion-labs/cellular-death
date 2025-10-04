@@ -43,11 +43,6 @@ export function createTerrarium(root: TgpuRoot, world: World) {
     cameraPos: { uniform: d.vec3f },
   });
 
-  const getMoldDensity = (coord: d.v3f): number => {
-    'kernel';
-    return std.textureSampleLevel(renderLayout.$.state, sampler, coord, 0).x;
-  };
-
   const sampler = tgpu['~unstable'].sampler({
     magFilter: canFilter ? 'linear' : 'nearest',
     minFilter: canFilter ? 'linear' : 'nearest',
@@ -171,7 +166,6 @@ export function createTerrarium(root: TgpuRoot, world: World) {
         const gamma = d.f32(1.4);
         const sigmaT = d.f32(DENSITY_MULTIPLIER);
 
-        const slimeAlbedo = d.vec3f(1, 0.5, 0.4);
         const terrainAlbedo = d.vec3f(0.25, 0.23, 0.2).mul(0.5);
 
         const lightDir = localLightDir;
@@ -331,7 +325,14 @@ export function createTerrarium(root: TgpuRoot, world: World) {
             break;
           }
 
-          const sampleValue = getMoldDensity(texCoord);
+          const sampleVec = std.textureSampleLevel(
+            renderLayout.$.state,
+            sampler,
+            texCoord,
+            0,
+          );
+          const sampleValue = sampleVec.x;
+          const lifetimeNormalized = sampleVec.y;
           const d0 = std.smoothstep(thresholdLo, thresholdHi, sampleValue);
           const density = std.pow(d0, gamma);
 
@@ -389,6 +390,14 @@ export function createTerrarium(root: TgpuRoot, world: World) {
 
             const diffuse = std.max(std.dot(normal, lightDir), 0.0);
             const lighting = ambientLight + diffuseStrength * diffuse;
+
+            const youngColor = d.vec3f(1, 0.5, 0.4);
+            const oldColor = d.vec3f(0.1, 0.2, 1.0);
+            const slimeAlbedo = std.mix(
+              youngColor,
+              oldColor,
+              lifetimeNormalized,
+            );
 
             const alphaSrc = 1 - std.exp(-sigmaT * density * stepSize);
             const litColor = slimeAlbedo.mul(lighting);
@@ -515,7 +524,11 @@ export function createTerrarium(root: TgpuRoot, world: World) {
     },
   });
 
-  const sim = createMoldSim(root, VOLUME_SIZE, terrainReadView);
+  const sim = createMoldSim(root, VOLUME_SIZE, terrainReadView, {
+    spawnPoint: d.vec3f(VOLUME_SIZE / 2, 0, VOLUME_SIZE / 2),
+    spawnRate: 1_000,
+    targetCount: 100_000,
+  });
   const timeUniform = root.createUniform(d.f32);
   const cameraPosUniform = root.createUniform(d.vec3f);
 
