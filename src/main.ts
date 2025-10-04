@@ -5,8 +5,9 @@ import * as wf from 'wayfare';
 import { createCameraRig } from './cameraRig.ts';
 import { createChamber } from './chamber.ts';
 import { createInputManager } from './inputManager.ts';
-import { createTerrarium } from './terrarium.ts';
 import { createSun } from './sun.ts';
+import { createTerrarium } from './terrarium.ts';
+
 
 function initButtons() {
   // start button
