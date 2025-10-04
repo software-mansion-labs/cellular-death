@@ -8,13 +8,20 @@
     </head>
     <body>
         <canvas id="canvas"></canvas>
-        <div id="dialogBox" data-state="hidden"></div>
+        <div id="dialogBox" data-state="hidden" class="z-10"></div>
         <div
             id="titleScreen"
-            class="absolute inset-0 bg-black/60 flex flex-col items-center pt-[30vh] text-white font-sans opacity-100 transition-opacity duration-1000 data-[state=hidden]:opacity-0 data-[state=hidden]:pointer-events-none"
+            class="group z-10 absolute inset-0 bg-black flex flex-col items-center pt-[30vh] text-white font-sans opacity-100 transition-opacity duration-1000 data-[state=hidden]:opacity-0 data-[state=hidden]:pointer-events-none data-[variant=pause]:bg-black/60"
         >
             <h1>Cellular Death</h1>
-            <button id="startButton">Begin the experiment</button>
+            <button id="startButton">
+                <span class="group-data-[variant=pause]:hidden">
+                    Begin the experiment
+                </span>
+                <span class="hidden group-data-[variant=pause]:inline"
+                    >Resume</span
+                >
+            </button>
         </div>
         <div
             id="agingIndicator"
@@ -41,7 +48,7 @@
                 </p>
             </div>
         </div>
-        <div id="menuButtons">
+        <div id="menuButtons" class="z-20">
             <button id="resetButton">
                 <img
                     src="/assets/icons/refresh-svgrepo-com.svg"
