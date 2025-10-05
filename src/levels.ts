@@ -32,6 +32,10 @@ export interface Level {
    * The goal position in the terrarium (0-1 normalized coordinates)
    */
   goalPosition: d.v3f;
+  /**
+   * Creature positions in the terrarium (0-1 normalized coordinates)
+   */
+  creaturePositions?: d.v3f[] | undefined;
 }
 
 export const LEVELS: Level[] = [
@@ -39,6 +43,7 @@ export const LEVELS: Level[] = [
     name: 'Level 1',
     spawnerPosition: d.vec3f(0.2, 0.5, 0.5),
     goalPosition: d.vec3f(0.8, 0.5, 0.5),
+    creaturePositions: [d.vec3f(0.2, 0.5, 0.9), d.vec3f(0.2, 0.5, 0.1)],
     init: (pos: d.v3f) => {
       'kernel';
       const scale = d.f32(2);
@@ -68,6 +73,11 @@ export const LEVELS: Level[] = [
     name: 'Level 2',
     spawnerPosition: d.vec3f(0.5, 0.1, 0.5),
     goalPosition: d.vec3f(0.5, 0.9, 0.5),
+    creaturePositions: [
+      d.vec3f(0.5, 0.3, 0.5),
+      d.vec3f(0.5, 0.5, 0.5),
+      d.vec3f(0.5, 0.7, 0.5),
+    ],
     init: (pos: d.v3f) => {
       'kernel';
       const scale = d.f32(2);
