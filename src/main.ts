@@ -178,11 +178,11 @@ async function initGame() {
 
     if (terrarium.goalReached) {
       // Next level
-      const nextLevel = currentLevelIndex + 1;
+      const nextLevel = gameState.levelIdx + 1;
       loadLevel(nextLevel < LEVELS.length ? nextLevel : 0);
     } else {
       // Restart
-      loadLevel(currentLevelIndex);
+      loadLevel(gameState.levelIdx);
     }
   });
 
