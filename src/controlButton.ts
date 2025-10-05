@@ -5,6 +5,8 @@ import { quatn } from 'wgpu-matrix';
 import { createBoxMesh } from './boxMesh';
 import { EmissiveMaterial } from './emissiveMaterial';
 import type { FoggyMaterial } from './foggyMaterial';
+import { Hoverable } from './hoverable';
+import { InputData } from './inputManager';
 
 const ControlButtonTag = trait();
 const ControlButtonFaceTag = trait();
@@ -17,6 +19,7 @@ const buttonFaceMesh = createBoxMesh(0.12, 0.12, 0.05);
 export function createControlButtons(
   world: World,
   foggyMaterial: FoggyMaterial,
+  onPress: () => void,
 ) {
   const parent = world.spawn(
     ControlButtonTag,
@@ -44,11 +47,30 @@ export function createControlButtons(
     ControlButtonFaceTag,
     wf.MeshTrait(buttonFaceMesh),
     wf.TransformTrait({ position: d.vec3f(0, 0, 0) }),
+    Hoverable({ boundsSize: d.vec3f(0.1) }),
     ...EmissiveMaterial.Bundle({ color: d.vec3f(0.6, 0.6, 0.8) }),
   );
   wf.connectAsChild(neck, face);
 
   return {
-    update() {},
+    update() {
+      const inputData = wf.getOrThrow(world, InputData);
+
+      world
+        .query(ControlButtonFaceTag, Hoverable, EmissiveMaterial.Params)
+        .updateEach(([hoverable, params]) => {
+          params.color = hoverable.hover
+            ? d.vec3f(0.8, 0.8, 1)
+            : d.vec3f(0.6, 0.6, 0.8);
+
+          if (hoverable.hover && inputData.dragging) {
+            params.color = d.vec3f(0.9, 0.9, 1);
+          }
+
+          if (hoverable.hover && inputData.justLeftClicked) {
+            onPress();
+          }
+        });
+    },
   };
 }

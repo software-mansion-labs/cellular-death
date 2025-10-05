@@ -161,6 +161,8 @@ export function createTerrarium(root: TgpuRoot, world: World) {
         let accum = d.vec3f();
 
         const TMin = d.f32(1e-3);
+        const creatureRadius = d.f32(0.05);
+        const creatureColor = d.vec3f(1, 1, 0);
 
         for (let i = 0; i < numSteps; i++) {
           if (transmittance <= TMin) {
@@ -179,6 +181,39 @@ export function createTerrarium(root: TgpuRoot, world: World) {
             texCoord.z > 1
           ) {
             continue;
+          }
+
+          const volumePos = texCoord.mul(VOLUME_SIZE);
+          for (let c = d.u32(0); c < creatureCount.$; c = c + 1) {
+            const isEaten = sim.creaturesReadonly.$[c].eaten;
+            if (isEaten === 0) {
+              const distToCreature = std.length(
+                volumePos.sub(sim.creaturesReadonly.$[c].position),
+              );
+
+              if (distToCreature < creatureRadius * VOLUME_SIZE) {
+                const creatureNormal = std.normalize(
+                  volumePos.sub(sim.creaturesReadonly.$[c].position),
+                );
+                const creatureDiffuse = std.max(
+                  std.dot(creatureNormal, lightDir),
+                  0.0,
+                );
+                const creatureLighting =
+                  ambientLight + diffuseStrength * creatureDiffuse;
+                const creatureContrib = creatureColor
+                  .mul(creatureLighting)
+                  .mul(transmittance);
+
+                accum = accum.add(creatureContrib);
+                transmittance = d.f32(0);
+                break;
+              }
+            }
+          }
+
+          if (transmittance <= TMin) {
+            break;
           }
 
           const terrainValue = std.textureSampleLevel(
@@ -540,9 +575,11 @@ export function createTerrarium(root: TgpuRoot, world: World) {
       targetCount: 100_000,
     },
     d.vec3f(-9999),
+    [],
   );
   const timeUniform = root.createUniform(d.f32);
   const cameraPosUniform = root.createUniform(d.vec3f);
+  const creatureCount = root.createMutable(d.u32, 0);
 
   const renderBindGroups = [0, 1].map((i) =>
     root.createBindGroup(renderLayout, {
@@ -600,11 +637,17 @@ export function createTerrarium(root: TgpuRoot, world: World) {
     get goalReached() {
       return sim.goalReached;
     },
-    reset() {
-      sim.reset();
-    },
     startLevel(level: Level) {
       sim.reset();
+
+      world
+        .query(Terrarium, wf.TransformTrait)
+        .updateEach(([terrarium, transform]) => {
+          terrarium.rotationProgress = 0;
+          terrarium.prevRotation = d.vec4f(transform.rotation);
+          quatn.identity(terrarium.targetRotation);
+        });
+
       const terrainPipeline = root['~unstable']
         .pipe(cache.inject())
         .with(levelSlot, level)
@@ -623,6 +666,8 @@ export function createTerrarium(root: TgpuRoot, world: World) {
 
       sim.setSpawnerPosition(spawnerPos);
       sim.setGoalPosition(goalPos);
+      sim.setCreatures(level.creaturePositions ?? []);
+      creatureCount.write(level.creaturePositions?.length ?? 0);
 
       const goalTransform = wf.getOrThrow(goalSphere, wf.TransformTrait);
       goalTransform.position.x = level.goalPosition.x - 0.5;
@@ -652,7 +697,12 @@ export function createTerrarium(root: TgpuRoot, world: World) {
           const targetRotation = terrarium.targetRotation;
           const ang = terrarium.angularMomentum;
 
-          if (!inputData.dragging && (ang.x !== 0 || ang.y !== 0)) {
+          const dragging =
+            inputData.dragging &&
+            Math.abs(inputData.mouseX - 0.5) < 0.2 &&
+            Math.abs(inputData.mouseY - 0.5) < 0.2;
+
+          if (!dragging && (ang.x !== 0 || ang.y !== 0)) {
             prevRotation.x = transform.rotation.x;
             prevRotation.y = transform.rotation.y;
             prevRotation.z = transform.rotation.z;
@@ -696,7 +746,7 @@ export function createTerrarium(root: TgpuRoot, world: World) {
           );
           quatn.normalize(transform.rotation, transform.rotation);
 
-          if (inputData.dragging) {
+          if (dragging) {
             ang.x += inputData.dragDeltaY * 2;
             ang.y += inputData.dragDeltaX * 2;
             quatn.mul(

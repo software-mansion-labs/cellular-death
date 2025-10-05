@@ -16,7 +16,9 @@ const GRAVITY_STRENGTH = 10;
 const INACTIVE_POSITION = d.vec3f(-9999);
 const DEATH_TIME_THRESHOLD = 3.0;
 const DENSITY_CHECK_THRESHOLD = 0.05;
-const MAX_LIFETIME = 4.0;
+const INITIAL_MAX_LIFETIME = 3.5;
+const CREATURE_EAT_RADIUS = 3.0;
+const LIFETIME_PER_CREATURE = 1.0;
 const GOAL_CHECK_RADIUS = 5.0;
 const GOAL_DENSITY_THRESHOLD = 100.0;
 const RAPID_AGING_MULTIPLIER = 3.0;
@@ -37,6 +39,16 @@ const Agent = d.struct({
   totalLifetime: d.f32,
 });
 
+const CreatureState = d.struct({
+  position: d.vec3f,
+  eaten: d.u32,
+});
+
+const CreatureAtomicState = d.struct({
+  position: d.vec3f,
+  eaten: d.atomic(d.u32),
+});
+
 const Params = d.struct({
   deltaTime: d.f32,
   moveSpeed: d.f32,
@@ -52,11 +64,6 @@ const SpawnerConfig = d.struct({
   spawnPoint: d.vec3f,
   spawnRate: d.f32,
   targetCount: d.u32,
-});
-
-const SpawnRange = d.struct({
-  startIndex: d.u32,
-  endIndex: d.u32,
 });
 
 const GoalConfig = d.struct({
@@ -76,6 +83,7 @@ export function createMoldSim(
     targetCount?: number;
   },
   goalPosition?: d.v3f,
+  creaturePositions: d.v3f[] = [],
 ) {
   const resolution = d.vec3f(volumeSize);
 
@@ -85,16 +93,36 @@ export function createMoldSim(
   const spawnRate = spawnerConfig?.spawnRate ?? 10000;
   const targetCount = spawnerConfig?.targetCount ?? NUM_AGENTS;
 
-  const spawnRange = root.createUniform(SpawnRange, {
-    startIndex: 0,
-    endIndex: 0,
-  });
+  const activeAgentCountBuffer = root.createMutable(d.u32, 0);
 
   const goal = root.createMutable(GoalConfig, {
     position:
       goalPosition ?? d.vec3f(volumeSize / 2, volumeSize - 10, volumeSize / 2),
     reached: 0,
   });
+
+  const MAX_CREATURES = 10;
+
+  const creaturesAtomic = root.createMutable(
+    d.arrayOf(CreatureAtomicState, MAX_CREATURES),
+    Array.from({ length: MAX_CREATURES }, (_, i) =>
+      i < creaturePositions.length
+        ? { position: creaturePositions[i].mul(volumeSize), eaten: 0 }
+        : { position: d.vec3f(-9999), eaten: 1 },
+    ),
+  );
+
+  // A readonly view of the creatures buffer
+  const creaturesReadonly = root.createReadonly(
+    d.arrayOf(CreatureState, MAX_CREATURES),
+    root.unwrap(creaturesAtomic.buffer),
+  );
+
+  const creatureCount = root.createUniform(d.u32, creaturePositions.length);
+  const maxLifetime = root.createMutable(
+    d.atomic(d.u32),
+    Math.floor(INITIAL_MAX_LIFETIME * 1000),
+  );
 
   const params = root.createUniform(Params, {
     deltaTime: 0,
@@ -144,39 +172,16 @@ export function createMoldSim(
     });
   });
 
-  const spawnAgents = tgpu['~unstable'].computeFn({
+  const spawnOrRespawnAgents = tgpu['~unstable'].computeFn({
     in: { gid: d.builtin.globalInvocationId },
     workgroupSize: [AGENT_WORKGROUP_SIZE],
   })(({ gid }) => {
-    if (gid.x >= spawnRange.$.endIndex) {
-      return;
-    }
-    if (gid.x >= spawnRange.$.startIndex && gid.x < spawnRange.$.endIndex) {
-      randf.seed(gid.x / NUM_AGENTS);
-      const randomOffset = randf.inUnitSphere().mul(5);
-      const pos = spawner.$.spawnPoint.add(randomOffset);
-      const center = resolution.div(2);
-      const dir = std.normalize(center.sub(pos));
-      agentsData.$[gid.x] = Agent({
-        position: pos,
-        direction: dir,
-        isActive: 1,
-        timeSinceContact: 0,
-        totalLifetime: 0,
-      });
-    }
-  });
-
-  const respawnAgents = tgpu['~unstable'].computeFn({
-    in: { gid: d.builtin.globalInvocationId },
-    workgroupSize: [AGENT_WORKGROUP_SIZE],
-  })(({ gid }) => {
-    if (gid.x >= spawnRange.$.endIndex) {
+    if (gid.x >= activeAgentCountBuffer.$) {
       return;
     }
     const agent = agentsData.$[gid.x];
-    if (gid.x < spawnRange.$.endIndex && agent.isActive < 0.5) {
-      randf.seed(gid.x / NUM_AGENTS + 0.5);
+    if (agent.isActive < 0.5) {
+      randf.seed(gid.x / NUM_AGENTS + params.$.deltaTime);
       const randomOffset = randf.inUnitSphere().mul(5);
       const pos = spawner.$.spawnPoint.add(randomOffset);
       const center = resolution.div(2);
@@ -356,7 +361,7 @@ export function createMoldSim(
         terrainNormal.mul(2.0 * std.dot(direction, terrainNormal)),
       );
 
-      const randomOffset = randf.inUnitSphere().mul(0.2);
+      const randomOffset = randf.inUnitSphere().mul(0.8);
       direction = std.normalize(reflectedDir.add(randomOffset));
     }
 
@@ -388,7 +393,7 @@ export function createMoldSim(
     ).x;
     if (finalTerrainCheck > 0.07) {
       const terrainNormal = getTerrainNormal(newPos, dimsf);
-      newPos = agent.position.add(terrainNormal.mul(1.0));
+      newPos = agent.position.sub(terrainNormal.mul(1));
     }
 
     const center = dimsf.div(2);
@@ -453,13 +458,34 @@ export function createMoldSim(
     }
 
     let newIsActive = d.f32(1);
+    const maxLifetimeSeconds = d.f32(std.atomicLoad(maxLifetime.$)) / 1000.0;
     let isDying = d.f32(0);
     if (
       newTimeSinceContact > DEATH_TIME_THRESHOLD ||
-      newTotalLifetime > MAX_LIFETIME
+      newTotalLifetime > maxLifetimeSeconds
     ) {
       newIsActive = 0;
       isDying = 1;
+    }
+
+    if (newIsActive > 0) {
+      for (let i = d.u32(0); i < creatureCount.$; i = i + 1) {
+        const creatureEaten = std.atomicLoad(creaturesAtomic.$[i].eaten);
+        if (creatureEaten === 0) {
+          const distToCreature = std.length(
+            newPos.sub(creaturesAtomic.$[i].position),
+          );
+          if (distToCreature < CREATURE_EAT_RADIUS) {
+            const wasAlreadyEaten = std.atomicLoad(creaturesAtomic.$[i].eaten);
+            if (wasAlreadyEaten === 0) {
+              std.atomicStore(creaturesAtomic.$[i].eaten, 1);
+              const lifetimeIncrement = d.u32(LIFETIME_PER_CREATURE * 1000);
+              std.atomicAdd(maxLifetime.$, lifetimeIncrement);
+            }
+            break;
+          }
+        }
+      }
     }
 
     agentsData.$[gid.x] = Agent({
@@ -471,7 +497,9 @@ export function createMoldSim(
     });
 
     const newDensity = oldDensity + 1;
-    const normalizedLifetime = std.saturate(newTotalLifetime / MAX_LIFETIME);
+    const normalizedLifetime = std.saturate(
+      newTotalLifetime / maxLifetimeSeconds,
+    );
     const isOldDeath = oldLifetime > 1.0;
     const shouldOverride = isOldDeath && isDying < 0.5;
 
@@ -607,13 +635,8 @@ export function createMoldSim(
   const initPipeline = root['~unstable']
     .withCompute(initAgents)
     .createPipeline();
-
   const spawnPipeline = root['~unstable']
-    .withCompute(spawnAgents)
-    .createPipeline();
-
-  const respawnPipeline = root['~unstable']
-    .withCompute(respawnAgents)
+    .withCompute(spawnOrRespawnAgents)
     .createPipeline();
 
   const computePipeline = root['~unstable']
@@ -656,6 +679,16 @@ export function createMoldSim(
       tex.clear();
     }
 
+    if (creaturePositions.length > 0) {
+      creaturesAtomic.write(
+        creaturePositions.map((pos) => ({
+          position: pos.mul(volumeSize),
+          eaten: 0,
+        })),
+      );
+    }
+    maxLifetime.write(Math.floor(INITIAL_MAX_LIFETIME * 1000));
+
     initPipeline.dispatchWorkgroups(
       Math.ceil(NUM_AGENTS / AGENT_WORKGROUP_SIZE),
     );
@@ -664,6 +697,8 @@ export function createMoldSim(
 
   return {
     textures,
+    creaturesAtomic,
+    creaturesReadonly,
     get currentTexture() {
       return currentTexture;
     },
@@ -681,6 +716,17 @@ export function createMoldSim(
       goal.write({ position: newPosition, reached: 0 });
       goalReached = false;
     },
+    setCreatures(positions: d.v3f[]) {
+      creaturesAtomic.write(
+        Array.from({ length: MAX_CREATURES }, (_, i) =>
+          i < positions.length
+            ? { position: positions[i].mul(volumeSize), eaten: 0 }
+            : { position: d.vec3f(-9999, -9999, -9999), eaten: 1 },
+        ),
+      );
+      creatureCount.write(positions.length);
+      maxLifetime.write(Math.floor(INITIAL_MAX_LIFETIME * 1000));
+    },
     tick(world: World, gravityDir: d.v3f) {
       const time = wf.getOrThrow(world, wf.Time);
       const deltaTime = time.deltaSeconds;
@@ -693,27 +739,15 @@ export function createMoldSim(
 
       if (activeAgentCount < targetCount) {
         spawnAccumulator += deltaTime * spawnRate;
-        const toSpawn = Math.floor(spawnAccumulator);
+        const toSpawn = Math.min(
+          Math.floor(spawnAccumulator),
+          targetCount - activeAgentCount,
+        );
 
         if (toSpawn > 0) {
-          const newActiveCount = Math.min(
-            activeAgentCount + toSpawn,
-            targetCount,
-          );
-
-          if (newActiveCount > 0) {
-            spawnRange.write({
-              startIndex: activeAgentCount,
-              endIndex: newActiveCount,
-            });
-            spawnPipeline.dispatchWorkgroups(
-              Math.ceil(newActiveCount / AGENT_WORKGROUP_SIZE),
-            );
-            root['~unstable'].flush();
-          }
-
-          activeAgentCount = newActiveCount;
+          activeAgentCount += toSpawn;
           spawnAccumulator -= toSpawn;
+          activeAgentCountBuffer.write(activeAgentCount);
         }
       }
 
@@ -730,11 +764,7 @@ export function createMoldSim(
         .dispatchWorkgroups(Math.ceil(NUM_AGENTS / AGENT_WORKGROUP_SIZE));
 
       if (activeAgentCount > 0) {
-        spawnRange.write({
-          startIndex: 0,
-          endIndex: activeAgentCount,
-        });
-        respawnPipeline.dispatchWorkgroups(
+        spawnPipeline.dispatchWorkgroups(
           Math.ceil(activeAgentCount / AGENT_WORKGROUP_SIZE),
         );
       }

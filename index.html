@@ -20,14 +20,25 @@
             class="group z-10 absolute inset-0 bg-black flex flex-col items-center pt-[30vh] text-white font-sans opacity-100 transition-opacity duration-1000 data-[state=hidden]:opacity-0 data-[state=hidden]:pointer-events-none data-[variant=pause]:bg-black/60"
         >
             <h1>Cellular Death</h1>
-            <button id="startButton">
-                <span class="group-data-[variant=pause]:hidden">
-                    Begin the experiment
-                </span>
-                <span class="hidden group-data-[variant=pause]:inline"
-                    >Resume</span
+            <div class="flex flex-col gap-4">
+                <button
+                    id="startButton"
+                    class="border p-4 text-2xl w-md cursor-pointer text-white"
                 >
-            </button>
+                    <span class="group-data-[variant=pause]:hidden">
+                        Begin the experiment
+                    </span>
+                    <span class="hidden group-data-[variant=pause]:inline">
+                        Resume</span
+                    >
+                </button>
+                <button
+                    id="clearSaveDataButton"
+                    class="border p-4 text-2xl w-md cursor-pointer text-white"
+                >
+                    Clear save data
+                </button>
+            </div>
         </div>
         <div
             id="agingIndicator"
@@ -50,18 +61,11 @@
                     Goal Reached!
                 </h2>
                 <p class="text-white/80 font-sans text-sm">
-                    Press Enter to continue
+                    Press the button in front of you to continue.
                 </p>
             </div>
         </div>
         <div id="menuButtons" class="z-20">
-            <button id="resetButton">
-                <img
-                    src="/assets/icons/refresh-svgrepo-com.svg"
-                    alt="Reset"
-                    draggable="false"
-                />
-            </button>
             <button id="muteButton">
                 <img
                     class="unmuted"

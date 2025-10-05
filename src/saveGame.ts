@@ -1,17 +1,11 @@
 import { type } from 'arktype';
 
 export const GameState = type({
-  testString: 'string',
-  testNumber: 'number',
-  testBoolean: 'boolean',
-  testArray: 'number[]',
+  levelIdx: 'number',
 });
 
-const defaultGameState = GameState({
-  testString: 'default',
-  testNumber: 0,
-  testBoolean: false,
-  testArray: [],
+const defaultGameState = GameState.from({
+  levelIdx: 0,
 });
 
 const parseJson = type('string').pipe.try(
@@ -99,6 +93,11 @@ const loadGame = onNWJS ? loadGameNWJS : loadGameLocalStorage;
 
 export const gameStateManager = {
   state: loadGame('main'),
+  reset() {
+    saveGame(defaultGameState, 'main');
+    // Reload the page
+    window.location.reload();
+  },
   save() {
     saveGame(this.state, 'main');
   },

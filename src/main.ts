@@ -11,11 +11,12 @@ import { level1dialogue } from './dialogue.ts';
 import { createFoggyMaterial } from './foggyMaterial.ts';
 import { createInputManager } from './inputManager.ts';
 import { LEVELS } from './levels.ts';
+import { gameStateManager } from './saveGame.ts';
 import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
 
 const quality: 'low' | 'high' | 'ultra' = 'ultra';
-let showingTitleScreen = true;
+let showingTitleScreen = false;
 let pauseMenuVariant = false;
 
 function initAgingIndicator() {
@@ -51,6 +52,8 @@ function initButtons() {
   // biome-ignore lint/style/noNonNullAssertion: it's fine
   const startButton = document.getElementById('startButton')!;
   if (!startButton) throw new Error('startButton not found');
+  const clearSaveDataButton = document.getElementById('clearSaveDataButton')!;
+  if (!clearSaveDataButton) throw new Error('clearSaveDataButton not found');
 
   function updateUI() {
     if (showingTitleScreen) {
@@ -125,19 +128,9 @@ function initButtons() {
     Tone.getDestination().mute = !Tone.getDestination().mute;
   });
 
-  // reset button
-  const resetButton = document.getElementById('resetButton');
-  let onReset: (() => void) | null = null;
-
-  resetButton?.addEventListener('click', () => {
-    onReset?.();
+  clearSaveDataButton.addEventListener('click', () => {
+    gameStateManager.reset();
   });
-
-  return {
-    setOnReset: (callback: () => void) => {
-      onReset = callback;
-    },
-  };
 }
 
 async function initGame() {
@@ -173,7 +166,7 @@ async function initGame() {
   const world = engine.world;
 
   // Attaches input controls to the canvas
-  createInputManager(world, canvas);
+  const inputManager = createInputManager(world, canvas);
 
   const sun = createSun(root, engine);
 
@@ -184,7 +177,20 @@ async function initGame() {
   const chamber = createChamber(world, foggy.material);
 
   // Control buttons
-  const controlButtons = createControlButtons(world, foggy.material);
+  const controlButtons = createControlButtons(world, foggy.material, () => {
+    if (showingTitleScreen) {
+      return;
+    }
+
+    if (terrarium.goalReached) {
+      // Next level
+      const nextLevel = gameState.levelIdx + 1;
+      loadLevel(nextLevel < LEVELS.length ? nextLevel : 0);
+    } else {
+      // Restart
+      loadLevel(gameState.levelIdx);
+    }
+  });
 
   // Terrarium (preferably last as far as rendered object go, since it's semi-transparent)
   const terrarium = createTerrarium(root, world);
@@ -192,7 +198,9 @@ async function initGame() {
   // Camera rig
   const cameraRig = createCameraRig(world);
 
-  let currentLevelIndex = 0;
+  // Reading game state
+  const gameState = gameStateManager.state;
+
   let levelInitialized = false;
   let goalReachedShown = false;
 
@@ -201,13 +209,16 @@ async function initGame() {
 
   function updateLevelIndicator() {
     if (levelIndicator) {
-      levelIndicator.textContent = LEVELS[currentLevelIndex].name;
+      levelIndicator.textContent = LEVELS[gameState.levelIdx].name;
     }
   }
 
   function loadLevel(index: number) {
-    currentLevelIndex = index;
-    terrarium.startLevel(LEVELS[currentLevelIndex]);
+    if (gameState.levelIdx !== index) {
+      gameState.levelIdx = index;
+      gameStateManager.save();
+    }
+    terrarium.startLevel(LEVELS[gameState.levelIdx]);
     updateLevelIndicator();
     goalReachedShown = false;
     if (goalReachedIndicator) {
@@ -215,20 +226,8 @@ async function initGame() {
     }
   }
 
-  buttons.setOnReset(() => loadLevel(currentLevelIndex));
-
-  document.addEventListener('keydown', (event) => {
-    if (
-      event.code === 'Enter' &&
-      terrarium.goalReached &&
-      !showingTitleScreen
-    ) {
-      const nextLevel = currentLevelIndex + 1;
-      loadLevel(nextLevel < LEVELS.length ? nextLevel : 0);
-    }
-  });
-
   engine.run(() => {
+    inputManager.update();
     cameraRig.update();
     foggy.update();
     terrarium.update();
@@ -239,7 +238,7 @@ async function initGame() {
 
     if (!levelInitialized) {
       levelInitialized = true;
-      loadLevel(0);
+      loadLevel(4);
     }
 
     if (terrarium.goalReached && !goalReachedShown && !showingTitleScreen) {
