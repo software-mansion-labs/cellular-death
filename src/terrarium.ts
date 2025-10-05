@@ -627,6 +627,9 @@ export function createTerrarium(
   wf.connectAsChild(terrarium, goalSphere);
 
   return {
+    get creaturesReadonly() {
+      return sim.creaturesReadonly;
+    },
     get goalReached() {
       return sim.goalReached;
     },
