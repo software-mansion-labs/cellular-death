@@ -2,9 +2,9 @@ import { perlin3d } from '@typegpu/noise';
 import { sdBox2d, sdBox3d, sdSphere } from '@typegpu/sdf';
 import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
-import { gameStateManager } from './saveGame';
-import { level1dialogue } from './dialogue';
 import { getDialogBox } from './dialogBox';
+import { firstSlopesDialogue, level1dialogue } from './dialogue';
+import { gameStateManager } from './saveGame';
 
 export function getCurrentLevel(): Level | undefined {
   return LEVELS[gameStateManager.state.levelIdx];
@@ -235,6 +235,9 @@ export const LEVELS: Level[] = [
     spawnerPosition: d.vec3f(0.9, 0.9, 0.5),
     goalPosition: d.vec3f(0.8, 0.05, 0.5),
     creaturePositions: [d.vec3f(0.1, 0.85, 0.7), d.vec3f(0.1, 0.85, 0.3)],
+    onStart() {
+      getDialogBox().enqueueMessage(...firstSlopesDialogue);
+    },
     init: (pos: d.v3f) => {
       'kernel';
       const scale = d.f32(2);

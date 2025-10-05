@@ -90,8 +90,7 @@ function initButtons() {
       // Waiting for 3 seconds
       await new Promise((resolve) => setTimeout(resolve, 3000));
       getDialogBox().enqueueMessage(...introMonologue);
-    }
-    else {
+    } else {
       level.onStart?.();
     }
   }
