@@ -40,10 +40,38 @@ export interface Level {
 
 export const LEVELS: Level[] = [
   {
-    name: 'Level 1',
+    name: 'Knee',
     spawnerPosition: d.vec3f(0.2, 0.5, 0.5),
     goalPosition: d.vec3f(0.8, 0.5, 0.5),
-    creaturePositions: [d.vec3f(0.2, 0.5, 0.9), d.vec3f(0.2, 0.5, 0.1)],
+    init: (pos: d.v3f) => {
+      'kernel';
+      const scale = d.f32(2);
+      const noiseValue = perlin3d.sample(pos.mul(scale * 4));
+      const noiseValue2 = perlin3d.sample(pos.mul(scale * 8));
+
+      // Level initialization code here
+      let dist = d.f32(999999);
+
+      // Floor
+      dist = std.min(dist, pos.y - 0.15);
+
+      // Obstacle in the middle
+      dist = std.min(
+        dist,
+        sdBox3d(pos.sub(d.vec3f(1, 0.2, 0.5)), d.vec3f(0.5, 0.3, 1)),
+      );
+
+      // Displacement
+      dist += noiseValue * 0.04 + noiseValue2 * 0.01;
+
+      // Turning the SDF into a density field
+      return -dist;
+    },
+  },
+  {
+    name: 'Middle obstacle',
+    spawnerPosition: d.vec3f(0.2, 0.5, 0.5),
+    goalPosition: d.vec3f(0.8, 0.5, 0.5),
     init: (pos: d.v3f) => {
       'kernel';
       const scale = d.f32(2);
@@ -70,7 +98,7 @@ export const LEVELS: Level[] = [
     },
   },
   {
-    name: 'Level 2',
+    name: 'Cave system',
     spawnerPosition: d.vec3f(0.5, 0.1, 0.5),
     goalPosition: d.vec3f(0.5, 0.9, 0.5),
     creaturePositions: [
@@ -90,9 +118,10 @@ export const LEVELS: Level[] = [
     },
   },
   {
-    name: 'Level 3',
+    name: 'Slopes, just out of reach',
     spawnerPosition: d.vec3f(0.9, 0.9, 0.5),
-    goalPosition: d.vec3f(0.9, 0.1, 0.5),
+    goalPosition: d.vec3f(0.8, 0.05, 0.5),
+    creaturePositions: [d.vec3f(0.1, 0.85, 0.7), d.vec3f(0.1, 0.85, 0.3)],
     init: (pos: d.v3f) => {
       'kernel';
       const scale = d.f32(2);
