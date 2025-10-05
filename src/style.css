@@ -57,34 +57,3 @@ canvas {
   height: 48px;
   filter: brightness(0) invert(0.5);
 }
-
-#dialogBox {
-  position: fixed;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 90%;
-  max-width: 800px;
-  margin-bottom: 20px;
-
-  background: rgba(0, 0, 0, 0.6);
-  color: white;
-  font-size: 1.2rem;
-  line-height: 1.4;
-  padding: 16px 24px;
-  border-radius: 12px;
-  backdrop-filter: blur(6px);
-
-  text-align: left;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  z-index: 1000;
-  opacity: 0;
-  pointer-events: none;
-  transition: none;
-}
-
-#dialogBox[data-state="visible"] {
-  opacity: 1;
-  pointer-events: auto;
-  transition: opacity 1s ease;
-}

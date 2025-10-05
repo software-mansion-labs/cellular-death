@@ -5,6 +5,7 @@ import tgpu from 'typegpu';
 import * as wf from 'wayfare';
 import { createCameraRig } from './cameraRig.ts';
 import { createChamber } from './chamber.ts';
+import { createControlButtons } from './controlButton.ts';
 import { getDialogBox } from './dialogBox.ts';
 import { level1dialogue } from './dialogue.ts';
 import { createFoggyMaterial } from './foggyMaterial.ts';
@@ -12,7 +13,6 @@ import { createInputManager } from './inputManager.ts';
 import { LEVELS } from './levels.ts';
 import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
-import { createControlButtons } from './controlButton.ts';
 
 const quality: 'low' | 'high' | 'ultra' = 'ultra';
 let showingTitleScreen = true;
@@ -86,7 +86,6 @@ function initButtons() {
       clickSfx.start();
       clickSfx.onstop = () => backgroudMusic.start();
     });
-    getDialogBox().enqueueMessage(...level1dialogue);
   });
 
   // Pause menu
@@ -236,7 +235,7 @@ async function initGame() {
     sun.update();
     chamber.update();
     controlButtons.update();
-    getDialogBox().update();
+    getDialogBox().update(world);
 
     if (!levelInitialized) {
       levelInitialized = true;
