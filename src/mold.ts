@@ -9,24 +9,24 @@ const NUM_AGENTS = 800_000;
 const AGENT_WORKGROUP_SIZE = 64;
 const BLUR_WORKGROUP_SIZE = [4, 4, 4];
 
-const RANDOM_DIRECTION_WEIGHT = 0.3;
+const RANDOM_DIRECTION_WEIGHT = 0.7;
 const CENTER_BIAS_WEIGHT = 0.7;
-const GRAVITY_STRENGTH = 3;
+const GRAVITY_STRENGTH = 10;
 
 const INACTIVE_POSITION = d.vec3f(-9999);
 const DEATH_TIME_THRESHOLD = 3.0;
-const DENSITY_CHECK_THRESHOLD = 0.01;
-const MAX_LIFETIME = 5.0;
+const DENSITY_CHECK_THRESHOLD = 0.05;
+const MAX_LIFETIME = 4.0;
 const GOAL_CHECK_RADIUS = 5.0;
 const GOAL_DENSITY_THRESHOLD = 100.0;
-const RAPID_AGING_MULTIPLIER = 5.0;
+const RAPID_AGING_MULTIPLIER = 3.0;
 const GOAL_CHECK_INTERVAL = 0.5; // seconds
-const GOAL_ATTRACTION_STRENGTH = 2.0;
+const GOAL_ATTRACTION_STRENGTH = 5.0;
 
 const DEFAULT_MOVE_SPEED = 50.0;
 const DEFAULT_SENSOR_ANGLE = 1;
 const DEFAULT_SENSOR_DISTANCE = 4.0;
-const DEFAULT_TURN_SPEED = 30.0;
+const DEFAULT_TURN_SPEED = 20.0;
 const DEFAULT_EVAPORATION_RATE = 0.04;
 
 const Agent = d.struct({
@@ -453,11 +453,13 @@ export function createMoldSim(
     }
 
     let newIsActive = d.f32(1);
+    let isDying = d.f32(0);
     if (
       newTimeSinceContact > DEATH_TIME_THRESHOLD ||
       newTotalLifetime > MAX_LIFETIME
     ) {
       newIsActive = 0;
+      isDying = 1;
     }
 
     agentsData.$[gid.x] = Agent({
@@ -470,15 +472,27 @@ export function createMoldSim(
 
     const newDensity = oldDensity + 1;
     const normalizedLifetime = std.saturate(newTotalLifetime / MAX_LIFETIME);
-    const blendedLifetime = std.select(
-      normalizedLifetime,
-      (oldLifetime * oldDensity + normalizedLifetime) / newDensity,
-      oldDensity > 0.1,
-    );
+    const isOldDeath = oldLifetime > 1.0;
+    const shouldOverride = isOldDeath && isDying < 0.5;
+
+    let blendedLifetime = d.f32(0);
+    if (shouldOverride) {
+      blendedLifetime = normalizedLifetime;
+    } else if (oldDensity > 0.1 && !isOldDeath) {
+      blendedLifetime = std.min(
+        normalizedLifetime,
+        (oldLifetime * oldDensity + normalizedLifetime) / newDensity,
+      );
+    } else {
+      blendedLifetime = normalizedLifetime;
+    }
+
+    const deathMarker = std.select(blendedLifetime, 1.5, isDying > 0.5);
+
     std.textureStore(
       computeLayout.$.newState,
       d.vec3u(newPos),
-      d.vec4f(newDensity, blendedLifetime, 0, 1),
+      d.vec4f(newDensity, deathMarker, 0, 1),
     );
   });
 
@@ -489,7 +503,9 @@ export function createMoldSim(
     const dims = std.textureDimensions(computeLayout.$.oldState);
     if (gid.x >= dims.x || gid.y >= dims.y || gid.z >= dims.z) return;
 
-    let sum = d.f32();
+    let densitySum = d.f32();
+    let lifetimeSum = d.f32();
+    let lifetimeWeight = d.f32();
     let count = d.f32();
 
     for (let offsetZ = -1; offsetZ <= 1; offsetZ++) {
@@ -512,27 +528,34 @@ export function createMoldSim(
               computeLayout.$.oldState,
               d.vec3u(samplePos),
             );
-            sum = sum + valueVec.x;
-            count = count + 1;
+            const sampleDensity = valueVec.x;
+            const sampleLifetime = valueVec.y;
+
+            densitySum += sampleDensity;
+
+            const ageWeight = 1.0 + sampleLifetime * sampleLifetime * 5.0;
+            lifetimeSum += sampleLifetime * ageWeight;
+            lifetimeWeight += ageWeight;
+
+            count += 1;
           }
         }
       }
     }
 
-    const blurredDensity = sum / count;
+    const blurredDensity = densitySum / count;
     const newDensity = std.saturate(blurredDensity - params.$.evaporationRate);
 
-    const centerValue = std.textureLoad(computeLayout.$.oldState, gid.xyz);
-    let lifetime = centerValue.y;
+    let blurredLifetime = lifetimeSum / lifetimeWeight;
 
-    if (newDensity < 0.01) {
-      lifetime = 0;
+    if (newDensity < 0.001) {
+      blurredLifetime = 0;
     }
 
     std.textureStore(
       computeLayout.$.newState,
       gid.xyz,
-      d.vec4f(newDensity, lifetime, 0, 1),
+      d.vec4f(newDensity, blurredLifetime, 0, 1),
     );
   });
 
