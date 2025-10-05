@@ -20,17 +20,21 @@ export interface DialogMessage {
 }
 
 class MessageTicker {
-  #message: string;
+  #message: DialogMessage;
   #characterStagger: number;
 
   #charCount: number;
   #timeUntilNextChar: number;
 
-  constructor({ message, characterStagger: speed }: DialogMessage) {
+  constructor(message: DialogMessage) {
     this.#message = message;
-    this.#characterStagger = speed;
+    this.#characterStagger = message.characterStagger;
     this.#charCount = 0;
-    this.#timeUntilNextChar = speed;
+    this.#timeUntilNextChar = message.characterStagger;
+  }
+
+  init() {
+    this.#message.onAppear?.();
   }
 
   update(deltaTime: number): string | undefined {
@@ -40,10 +44,10 @@ class MessageTicker {
       this.#charCount += 1;
     }
 
-    if (this.#charCount > this.#message.length) {
+    if (this.#charCount > this.#message.message.length) {
       return undefined;
     }
-    return this.#message.slice(0, this.#charCount);
+    return this.#message.message.slice(0, this.#charCount);
   }
 }
 
@@ -55,7 +59,12 @@ class DialogBox {
   }
 
   enqueueMessage(...messages: DialogMessage[]) {
+    const firstMessage = this.#messageQueue.length === 0;
     this.#messageQueue.push(...messages.map((m) => new MessageTicker(m)));
+
+    if (firstMessage) {
+      this.#messageQueue[0].init();
+    }
   }
 
   #tickAndGetCurrentMessage(deltaTime: number): string | undefined {
@@ -67,6 +76,8 @@ class DialogBox {
     const result = ticker.update(deltaTime);
     if (result === undefined) {
       this.#messageQueue = this.#messageQueue.slice(1);
+      this.#messageQueue[0]?.init();
+
       return '';
     }
     return result;

@@ -7,6 +7,7 @@ import { EmissiveMaterial } from './emissiveMaterial';
 import type { FoggyMaterial } from './foggyMaterial';
 import { Hoverable } from './hoverable';
 import { InputData } from './inputManager';
+import { gameStateManager } from './saveGame';
 
 const ControlButtonTag = trait();
 const ControlButtonFaceTag = trait();
@@ -16,6 +17,9 @@ const buttonStemMesh = createBoxMesh(0.06, STEM_HEIGHT / 2, 0.06);
 const buttonNeckMesh = createBoxMesh(0.15, 0.15, 0.03);
 const buttonFaceMesh = createBoxMesh(0.12, 0.12, 0.05);
 
+const INACTIVE_Y = -4;
+const ACTIVE_Y = -2;
+
 export function createControlButtons(
   world: World,
   foggyMaterial: FoggyMaterial,
@@ -23,7 +27,7 @@ export function createControlButtons(
 ) {
   const parent = world.spawn(
     ControlButtonTag,
-    wf.TransformTrait({ position: d.vec3f(0, -2, 1) }),
+    wf.TransformTrait({ position: d.vec3f(0, INACTIVE_Y, 1) }),
   );
 
   const stem = world.spawn(
@@ -54,7 +58,21 @@ export function createControlButtons(
 
   return {
     update() {
+      const time = wf.getOrThrow(world, wf.Time);
       const inputData = wf.getOrThrow(world, InputData);
+
+      world
+        .query(ControlButtonTag, wf.TransformTrait)
+        .updateEach(([transform]) => {
+          const active = gameStateManager.state.introMonologueStep > 0;
+
+          transform.position.y = wf.encroach(
+            transform.position.y,
+            active ? ACTIVE_Y : INACTIVE_Y,
+            0.01,
+            time.deltaSeconds,
+          );
+        });
 
       world
         .query(ControlButtonFaceTag, Hoverable, EmissiveMaterial.Params)

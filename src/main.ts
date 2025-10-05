@@ -9,7 +9,7 @@ import { createChamber } from './chamber.ts';
 import { createChamberOverlay } from './chamberOverlay.ts';
 import { createControlButtons } from './controlButton.ts';
 import { getDialogBox } from './dialogBox.ts';
-import { level1dialogue } from './dialogue.ts';
+import { introMonologue } from './dialogue.ts';
 import { createFoggyMaterial } from './foggyMaterial.ts';
 import { createInputManager } from './inputManager.ts';
 import { getCurrentLevel, LEVELS } from './levels.ts';
@@ -76,6 +76,25 @@ function initButtons() {
   }
   updateUI();
 
+  async function startGame() {
+    await Tone.loaded();
+
+    clickSfx.start();
+    backgroudMusic.start();
+
+    const level = getCurrentLevel();
+    if (!level) {
+      // INTRO
+
+      // Waiting for 3 seconds
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      getDialogBox().enqueueMessage(...introMonologue);
+    }
+    else {
+      level.onStart?.();
+    }
+  }
+
   startButton.addEventListener('click', () => {
     showingTitleScreen = false;
     updateUI();
@@ -88,13 +107,7 @@ function initButtons() {
     }
 
     // Not the pause menu, so we start the game 🍝
-    getDialogBox().enqueueMessage(...level1dialogue);
-
-    // play the clickSfx
-    Tone.loaded().then(() => {
-      clickSfx.start();
-      clickSfx.onstop = () => backgroudMusic.start();
-    });
+    startGame();
   });
 
   // Pause menu
@@ -238,6 +251,8 @@ async function initGame() {
     if (gameState.levelIdx !== index) {
       gameState.levelIdx = index;
       gameStateManager.save();
+
+      LEVELS[gameState.levelIdx].onStart?.();
     }
     terrarium.startLevel(LEVELS[gameState.levelIdx]);
     updateLevelIndicator();

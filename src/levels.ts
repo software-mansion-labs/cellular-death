@@ -3,6 +3,8 @@ import { sdBox2d, sdBox3d, sdSphere } from '@typegpu/sdf';
 import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import { gameStateManager } from './saveGame';
+import { level1dialogue } from './dialogue';
+import { getDialogBox } from './dialogBox';
 
 export function getCurrentLevel(): Level | undefined {
   return LEVELS[gameStateManager.state.levelIdx];
@@ -24,6 +26,8 @@ const sdfCone = (pos: d.v3f, c: d.v2f, h: number) => {
 export interface Level {
   name: string;
   ending?: boolean | undefined;
+  onStart?: () => void;
+  onFinish?: () => void;
   /**
    * A kernel that initializes the cell in the grid.
    * @param pos Where do we sample (0-1)
@@ -55,6 +59,9 @@ export const LEVELS: Level[] = [
     name: 'Knee',
     spawnerPosition: d.vec3f(0.2, 0.5, 0.5),
     goalPosition: d.vec3f(0.8, 0.5, 0.5),
+    onStart: () => {
+      getDialogBox().enqueueMessage(...level1dialogue);
+    },
     init: (pos: d.v3f) => {
       'kernel';
       const scale = d.f32(2);
