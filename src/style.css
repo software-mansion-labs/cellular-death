@@ -2,7 +2,7 @@
 
 @font-face {
   font-family: "TitleFont";
-  src: url("/assets/fonts/scriptina/SCRIPTIN.ttf") format("truetype");
+  src: url("assets/fonts/scriptina/SCRIPTIN.ttf") format("truetype");
   font-weight: normal;
   font-style: normal;
 }

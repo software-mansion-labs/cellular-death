@@ -5,8 +5,8 @@ import { quatn } from 'wgpu-matrix';
 import type { FoggyMaterial } from './foggyMaterial.ts';
 
 const [chamberMesh, fanMesh] = await Promise.all([
-  wf.meshAsset({ url: '/assets/models/chamber.obj' }).preload(),
-  wf.meshAsset({ url: '/assets/models/fan.obj' }).preload(),
+  wf.meshAsset({ url: 'assets/models/chamber.obj' }).preload(),
+  wf.meshAsset({ url: 'assets/models/fan.obj' }).preload(),
 ]);
 
 const FanTag = trait();
