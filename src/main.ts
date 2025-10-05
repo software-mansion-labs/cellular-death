@@ -17,6 +17,7 @@ import { createMoldSim } from './mold.ts';
 import { gameStateManager } from './saveGame.ts';
 import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
+import { isWebGPUSupported, showWebGPUErrorModal } from './checkWebgpu.ts';
 
 const VOLUME_SIZE = 128;
 
@@ -153,13 +154,20 @@ function initButtons() {
 }
 
 async function initGame() {
-  const root = await tgpu.init({
-    device: {
-      optionalFeatures: ['float32-filterable'],
-    },
-  });
-  const canvas = document.querySelector('canvas') as HTMLCanvasElement;
-  const context = canvas.getContext('webgpu') as GPUCanvasContext;
+
+  if (!isWebGPUSupported()) {
+    showWebGPUErrorModal();
+    return;
+  }
+
+  try {
+    const root = await tgpu.init({
+      device: {
+        optionalFeatures: ['float32-filterable'],
+      },
+    });
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+    const context = canvas.getContext('webgpu') as GPUCanvasContext;
 
   const renderer = new wf.Renderer(root, canvas, context);
   const engine = new wf.Engine(root, renderer);
@@ -289,6 +297,10 @@ async function initGame() {
       }
     }
   });
+  } catch (error) {
+    console.error('WebGPU initialization failed:', error);
+    showWebGPUErrorModal();
+  }
 }
 
 await initGame();
