@@ -3,6 +3,7 @@ import typegpu from 'unplugin-typegpu/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  base: './',
   plugins: [typegpu({}), tailwindcss()],
   build: {
     chunkSizeWarningLimit: 1600

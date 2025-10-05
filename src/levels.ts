@@ -3,7 +3,11 @@ import { sdBox2d, sdBox3d, sdSphere } from '@typegpu/sdf';
 import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import { getDialogBox } from './dialogBox';
-import { firstSlopesDialogue, level1dialogue, level1EndDialogue } from './dialogue';
+import {
+  firstSlopesDialogue,
+  level1dialogue,
+  level1EndDialogue,
+} from './dialogue';
 import { gameStateManager } from './saveGame';
 
 export function getCurrentLevel(): Level | undefined {
