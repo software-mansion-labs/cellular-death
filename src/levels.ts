@@ -3,6 +3,19 @@ import { sdBox2d, sdBox3d, sdSphere } from '@typegpu/sdf';
 import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 
+const sdfCone = (pos: d.v3f, c: d.v2f, h: number) => {
+  'kernel';
+  const q = d.vec2f(c.x / c.y, -1).mul(h);
+  const w = d.vec2f(std.length(pos.xz), pos.y);
+  const a = w.sub(q.mul(std.saturate(std.dot(w, q) / std.dot(q, q))));
+  const b = w.sub(d.vec2f(std.saturate(w.x / q.x), 1.0).mul(q));
+  const k = std.sign(q.y);
+  const e = std.min(std.dot(a, a), std.dot(b, b));
+  const s = std.max(k * (w.x * q.y - w.y * q.x), k * (w.y - q.y));
+
+  return std.sqrt(e) * std.sign(s);
+};
+
 export interface Level {
   name: string;
   ending?: boolean | undefined;
@@ -262,6 +275,109 @@ export const LEVELS: Level[] = [
       );
 
       // Turning the SDF into a density field
+      return -dist;
+    },
+  },
+  {
+    name: 'Volcano',
+    spawnerPosition: d.vec3f(0.5, 0.9, 0.5),
+    goalPosition: d.vec3f(0.9, 0.9, 0.5),
+    init: (pos: d.v3f) => {
+      'kernel';
+      const scale = d.f32(2);
+      const noiseValue = perlin3d.sample(pos.mul(scale * 4));
+      const noiseValue2 = perlin3d.sample(pos.mul(scale * 8));
+
+      let dist = d.f32(999999);
+
+      // Floor
+      dist = std.min(dist, pos.y - 0.1);
+
+      const volcano = std.max(
+        sdfCone(
+          pos.sub(d.vec3f(0.5, 0.7, 0.5)),
+          d.vec2f(std.sin(d.f32(Math.PI / 6)), std.cos(d.f32(Math.PI / 6))),
+          0.8,
+        ),
+        -sdSphere(pos.sub(d.vec3f(0.5, 0.55, 0.5)), d.f32(0.07)),
+      );
+
+      dist = std.min(dist, volcano);
+
+      dist += noiseValue * 0.04 + noiseValue2 * 0.01;
+
+      return -dist;
+    },
+  },
+  {
+    name: 'Plinko balls',
+    spawnerPosition: d.vec3f(0.05, 0.2, 0.5),
+    goalPosition: d.vec3f(0.9, 0.1, 0.5),
+    init: (pos: d.v3f) => {
+      'kernel';
+      const scale = d.f32(2);
+      const noiseValue = perlin3d.sample(pos.mul(scale * 4));
+      const noiseValue2 = perlin3d.sample(pos.mul(scale * 8));
+
+      let dist = d.f32(999999);
+
+      const sinTheta = std.sin(d.f32(Math.PI / 24));
+      const cosTheta = std.cos(d.f32(Math.PI / 24));
+
+      const pins = [
+        sdfCone(
+          pos.sub(d.vec3f(0.25, 1.5, 0.38)),
+          d.vec2f(sinTheta, cosTheta),
+          d.f32(2),
+        ),
+        sdfCone(
+          pos.sub(d.vec3f(0.25, 1.5, 0.61)),
+          d.vec2f(sinTheta, cosTheta),
+          d.f32(2),
+        ),
+        sdfCone(
+          pos.sub(d.vec3f(0.5, 1.5, 0.25)),
+          d.vec2f(sinTheta, cosTheta),
+          d.f32(2),
+        ),
+        sdfCone(
+          pos.sub(d.vec3f(0.5, 1.5, 0.5)),
+          d.vec2f(sinTheta, cosTheta),
+          d.f32(2),
+        ),
+        sdfCone(
+          pos.sub(d.vec3f(0.5, 1.5, 0.75)),
+          d.vec2f(sinTheta, cosTheta),
+          d.f32(2),
+        ),
+        sdfCone(
+          pos.sub(d.vec3f(0.75, 1.5, 0.1)),
+          d.vec2f(sinTheta, cosTheta),
+          d.f32(2),
+        ),
+        sdfCone(
+          pos.sub(d.vec3f(0.75, 1.5, 0.37)),
+          d.vec2f(sinTheta, cosTheta),
+          d.f32(2),
+        ),
+        sdfCone(
+          pos.sub(d.vec3f(0.75, 1.5, 0.63)),
+          d.vec2f(sinTheta, cosTheta),
+          d.f32(2),
+        ),
+        sdfCone(
+          pos.sub(d.vec3f(0.75, 1.5, 0.9)),
+          d.vec2f(sinTheta, cosTheta),
+          d.f32(2),
+        ),
+      ];
+
+      for (let i = 0; i < pins.length; i++) {
+        dist = std.min(dist, pins[i]);
+      }
+
+      dist += noiseValue * 0.04 + noiseValue2 * 0.01;
+
       return -dist;
     },
   },
