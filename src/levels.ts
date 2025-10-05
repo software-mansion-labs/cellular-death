@@ -141,7 +141,7 @@ export const LEVELS: Level[] = [
   {
     name: 'Roman Aqueduct',
     spawnerPosition: d.vec3f(0.7, 0.7, 0.5),
-    goalPosition: d.vec3f(0.9, 0.35, 0.9),
+    goalPosition: d.vec3f(0.7, 0.35, 0.5),
     init: (pos: d.v3f) => {
       'kernel';
       const rotMat1 = d.mat3x3f(
@@ -168,11 +168,13 @@ export const LEVELS: Level[] = [
         const arch = std.max(archSquare, -archHalfSphere);
         dist = std.min(dist, arch);
       }
+
       const drain = sdBox3d(
         position.sub(d.vec3f(0.5, 0.6, 0.5)),
-        d.vec3f(0.55, 0.05, 0.01),
+        d.vec3f(0.55, 0.05, 0.02),
       ); // lower wall
       dist = std.max(dist, -drain);
+
       for (let i = 0; i < archCount; i++) {
         const archX = (i + 0.5) / archCount;
         const archPos = position.sub(d.vec3f(archX, 0, 0));

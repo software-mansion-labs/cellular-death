@@ -16,7 +16,7 @@ import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
 
 const quality: 'low' | 'high' | 'ultra' = 'ultra';
-let showingTitleScreen = false;
+let showingTitleScreen = true;
 let pauseMenuVariant = false;
 
 function initAgingIndicator() {
@@ -238,7 +238,7 @@ async function initGame() {
 
     if (!levelInitialized) {
       levelInitialized = true;
-      loadLevel(4);
+      loadLevel(gameState.levelIdx);
     }
 
     if (terrarium.goalReached && !goalReachedShown && !showingTitleScreen) {
