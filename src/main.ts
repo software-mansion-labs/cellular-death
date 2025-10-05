@@ -18,7 +18,7 @@ import { createMoldSim } from './mold.ts';
 import { gameStateManager } from './saveGame.ts';
 import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
-import { beginSfx, backgroudMusic, resetSfx } from './sfx.ts';
+import { beginSfx, backgroudMusic, resetSfx, winSfx, cellEatenSfx } from './sfx.ts';
 
 const VOLUME_SIZE = 128;
 
@@ -274,6 +274,7 @@ async function initGame() {
       }
     }
 
+    let creatureCount = 0;
     engine.run(() => {
       if (showingTitleScreen) {
         return;
@@ -296,12 +297,21 @@ async function initGame() {
 
       if (terrarium.goalReached && !goalReachedShown) {
         goalReachedShown = true;
+        winSfx.start();
         getCurrentLevel()?.onFinish?.();
 
         if (!showingTitleScreen && goalReachedIndicator) {
           goalReachedIndicator.style.opacity = '1';
         }
       }
+
+      terrarium.creaturesMutable.read().then(creatures => {
+        const newCount = creatures.filter(c => c.eaten === 0).length;
+        if (newCount < creatureCount) {
+          cellEatenSfx.start();
+        }
+        creatureCount = newCount;
+      })
     });
   } catch (error) {
     console.error('WebGPU initialization failed:', error);
