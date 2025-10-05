@@ -30,21 +30,25 @@ export const LEVELS: Level[] = [
       'kernel';
       const scale = d.f32(2);
       const noiseValue = perlin3d.sample(pos.mul(scale * 4));
+      const noiseValue2 = perlin3d.sample(pos.mul(scale * 8));
 
       // Level initialization code here
-      let density = d.f32(0);
+      let dist = d.f32(999999);
 
       // Floor
-      density += std.select(d.f32(1.1), d.f32(0), pos.y > 0.1);
+      dist = std.min(dist, pos.y - 0.15);
 
       // Obstacle in the middle
-      density += -sdBox3d(
-        pos.sub(d.vec3f(0.5, 0.2, 0.5)),
-        d.vec3f(0.2, 0.5, 1),
+      dist = std.min(
+        dist,
+        sdBox3d(pos.sub(d.vec3f(0.5, 0.2, 0.5)), d.vec3f(0.2, 0.5, 1)),
       );
 
-      density += noiseValue * 0.05;
-      return density;
+      // Displacement
+      dist += noiseValue * 0.04 + noiseValue2 * 0.01;
+
+      // Turning the SDF into a density field
+      return -dist;
     },
   },
   {
