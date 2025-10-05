@@ -41,6 +41,6 @@ export const firstSlopesDialogue: DialogMessage[] = [
   },
   {
     message: `${sp}Use any opportunity to feed.${mp}`,
-    characterStagger: 0.03,
+    characterStagger: 0.1,
   },
 ];
