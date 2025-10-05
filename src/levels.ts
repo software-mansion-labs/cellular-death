@@ -7,6 +7,7 @@ import * as std from 'typegpu/std';
 
 export interface Level {
   name: string;
+  ending?: boolean | undefined;
   /**
    * A kernel that initializes the cell in the grid.
    * @param pos Where do we sample (0-1)
@@ -245,6 +246,25 @@ export const LEVELS: Level[] = [
       }
 
       dist += noiseValue * 0.04 + noiseValue2 * 0.01;
+      return -dist;
+    },
+  },
+  {
+    name: 'The End',
+    ending: true,
+    goalPosition: d.vec3f(0.5, 0.5, 0.05),
+    spawnerPosition: d.vec3f(0, 0.5, 0.5),
+    init: (pos: d.v3f) => {
+      'kernel';
+      let dist = d.f32(999999);
+
+      // Platform
+      dist = std.min(
+        dist,
+        sdBox3d(pos.sub(d.vec3f(0.5, 0.4, 0.5)), d.vec3f(0.3, 0.1, 0.3)),
+      );
+
+      // Turning the SDF into a density field
       return -dist;
     },
   },

@@ -1,36 +1,23 @@
-import { perlin3d } from '@typegpu/noise';
-import { trait, type World } from 'koota';
+import type { World } from 'koota';
 import tgpu, { type TgpuRoot } from 'typegpu';
 import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import * as wf from 'wayfare';
-import { quatn, vec3n } from 'wgpu-matrix';
 import { createBoxMesh } from './boxMesh.ts';
-import { InputData } from './inputManager.ts';
-import type { Level } from './levels.ts';
 import type { createMoldSim } from './mold.ts';
-import { createSphereMesh } from './sphereMesh.ts';
 
+const VOLUME_SIZE = 128;
 const RAYMARCH_STEPS = 256;
 const DENSITY_MULTIPLIER = 20;
-const HALO_COLOR = d.vec3f(1, 1, 1);
 
 const boxMesh = createBoxMesh(0.5, 0.5, 0.5);
-const sphereMesh = createSphereMesh(0.05, 12, 8);
-
-const Terrarium = trait({
-  angularMomentum: () => d.vec2f(),
-  prevRotation: () => quatn.identity(d.vec4f()),
-  targetRotation: () => quatn.identity(d.vec4f()),
-  rotationProgress: 0,
-});
 
 const blendState = {
   color: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
   alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
 } as const;
 
-export function createTerrarium(
+export function createChamberOverlay(
   root: TgpuRoot,
   world: World,
   sim: ReturnType<typeof createMoldSim>,
@@ -55,29 +42,17 @@ export function createTerrarium(
     minFilter: canFilter ? 'linear' : 'nearest',
   });
 
-  const cache = perlin3d.staticCache({ root, size: d.vec3u(sim.resolution) });
+  const resolution = d.vec3f(VOLUME_SIZE);
 
-  const terrainWriteView = sim.terrainTexture.createView(
-    d.textureStorage3d('r32float', 'write-only'),
-  );
-  const terrainSampled = sim.terrainTexture.createView();
+  const terrain = root['~unstable']
+    .createTexture({
+      size: [resolution.x, resolution.y, resolution.z],
+      format: 'r32float',
+      dimension: '3d',
+    })
+    .$usage('sampled', 'storage');
 
-  const levelSlot = tgpu.slot<Level>();
-  const initTerrain = tgpu['~unstable'].computeFn({
-    in: { gid: d.builtin.globalInvocationId },
-    workgroupSize: [4, 4, 4],
-  })(({ gid }) => {
-    const dims = std.textureDimensions(terrainWriteView.$);
-    if (gid.x >= dims.x || gid.y >= dims.y || gid.z >= dims.z) return;
-
-    const samplePos = d.vec3f(gid).div(d.vec3f(dims.sub(1)));
-
-    std.textureStore(
-      terrainWriteView.$,
-      gid.xyz,
-      d.vec4f(std.saturate(levelSlot.$.init(samplePos)), 0, 0, 1),
-    );
-  });
+  const terrainSampled = terrain.createView();
 
   const MoldMaterial = wf.createMaterial({
     vertexLayout: wf.POS_NORMAL_UV,
@@ -174,7 +149,7 @@ export function createTerrarium(
             continue;
           }
 
-          const volumePos = texCoord.mul(sim.resolution);
+          const volumePos = texCoord.mul(VOLUME_SIZE);
           for (let c = d.u32(0); c < creatureCount.$; c = c + 1) {
             const isEaten = sim.creaturesReadonly.$[c].eaten;
             if (isEaten === 0) {
@@ -182,7 +157,7 @@ export function createTerrarium(
                 volumePos.sub(sim.creaturesReadonly.$[c].position),
               );
 
-              if (distToCreature < creatureRadius * sim.resolution.x) {
+              if (distToCreature < creatureRadius * VOLUME_SIZE) {
                 const creatureNormal = std.normalize(
                   volumePos.sub(sim.creaturesReadonly.$[c].position),
                 );
@@ -261,7 +236,7 @@ export function createTerrarium(
 
             let gradientNormal = d.vec3f(0, 1, 0);
             {
-              const gradientOffset = d.f32(1.0 / sim.resolution.x);
+              const gradientOffset = d.f32(1.0 / VOLUME_SIZE);
               const texCoordMin = d.vec3f(0.0);
               const texCoordMax = d.vec3f(1.0);
 
@@ -348,7 +323,7 @@ export function createTerrarium(
           const density = std.pow(d0, gamma);
 
           if (density > 0.01) {
-            const gradientOffset = d.f32(5.0 / sim.resolution.x);
+            const gradientOffset = d.f32(5.0 / VOLUME_SIZE);
             const texCoordMin = d.vec3f(0.0);
             const texCoordMax = d.vec3f(1.0);
 
@@ -459,103 +434,6 @@ export function createTerrarium(
     },
   });
 
-  const HaloMaterial = wf.createMaterial({
-    vertexLayout: wf.POS_NORMAL_UV,
-    createPipeline({ root, format, $$ }) {
-      const Varying = {
-        localPos: d.vec3f,
-      };
-
-      const vertexFn = tgpu['~unstable'].vertexFn({
-        in: { pos: d.vec3f },
-        out: { pos: d.builtin.position, ...Varying },
-      })((input) => {
-        const worldPos = $$.modelMat.mul(d.vec4f(input.pos, 1));
-        const pos = $$.viewProjMat.mul(worldPos);
-
-        return {
-          pos,
-          localPos: input.pos,
-        };
-      });
-
-      const fragmentFn = tgpu['~unstable'].fragmentFn({
-        in: Varying,
-        out: d.vec4f,
-      })(() => {
-        const time = renderLayout.$.time;
-        const alpha = (1 - std.fract(time)) * 0.5;
-        return d.vec4f(HALO_COLOR, 1).mul(alpha);
-      });
-
-      return {
-        pipeline: root['~unstable']
-          .withVertex(vertexFn, wf.POS_NORMAL_UV.attrib)
-          .withFragment(fragmentFn, {
-            format,
-            blend: blendState,
-          })
-          .withPrimitive({ topology: 'triangle-list', cullMode: 'front' })
-          .withDepthStencil({
-            depthWriteEnabled: true,
-            depthCompare: 'less',
-            format: 'depth24plus',
-          })
-          .createPipeline(),
-      };
-    },
-  });
-
-  const BgMaterial = wf.createMaterial({
-    vertexLayout: wf.POS_NORMAL_UV,
-    createPipeline({ root, format, $$ }) {
-      const Varying = {
-        localPos: d.vec3f,
-      };
-
-      const vertexFn = tgpu['~unstable'].vertexFn({
-        in: { pos: d.vec3f },
-        out: { pos: d.builtin.position, ...Varying },
-      })((input) => {
-        const worldPos = $$.modelMat.mul(d.vec4f(input.pos, 1));
-        const pos = $$.viewProjMat.mul(worldPos);
-
-        return {
-          pos,
-          localPos: input.pos,
-        };
-      });
-
-      const fragmentFn = tgpu['~unstable'].fragmentFn({
-        in: Varying,
-        out: d.vec4f,
-      })((input) => {
-        const time = renderLayout.$.time;
-
-        const alpha =
-          0.7 + std.abs(std.sin(input.localPos.y * 2 + time * 2)) * 0.2;
-
-        return d.vec4f(HALO_COLOR, 1).mul(std.saturate(alpha));
-      });
-
-      return {
-        pipeline: root['~unstable']
-          .withVertex(vertexFn, wf.POS_NORMAL_UV.attrib)
-          .withFragment(fragmentFn, {
-            format,
-            blend: blendState,
-          })
-          .withPrimitive({ topology: 'triangle-list', cullMode: 'front' })
-          .withDepthStencil({
-            depthWriteEnabled: true,
-            depthCompare: 'less',
-            format: 'depth24plus',
-          })
-          .createPipeline(),
-      };
-    },
-  });
-
   const timeUniform = root.createUniform(d.f32);
   const cameraPosUniform = root.createUniform(d.vec3f);
   const creatureCount = root.createMutable(d.u32, 0);
@@ -569,95 +447,18 @@ export function createTerrarium(
     }),
   );
 
-  // Terrarium
-  const terrarium = world.spawn(
-    Terrarium(),
-    wf.TransformTrait({ position: d.vec3f(0) }),
-  );
-
-  const bg = world.spawn(
-    wf.MeshTrait(boxMesh),
-    ...BgMaterial.Bundle(),
-    wf.TransformTrait({ position: d.vec3f(0), scale: d.vec3f(1.1) }),
-    wf.ExtraBindingTrait({ group: undefined }),
-  );
-
-  const halo = world.spawn(
-    wf.MeshTrait(boxMesh),
-    ...HaloMaterial.Bundle(),
-    wf.TransformTrait({ position: d.vec3f(0), scale: d.vec3f(1.3) }),
-    wf.ExtraBindingTrait({ group: undefined }),
-  );
-
   // Ray-marched volume
-  const volume = world.spawn(
+  world.spawn(
     wf.MeshTrait(boxMesh),
-    ...MoldMaterial.Bundle(),
-    wf.TransformTrait({ position: d.vec3f(0) }),
+    ...wf.BlinnPhongMaterial.Bundle({ albedo: d.vec3f(1, 0, 0) }),
+    // ...MoldMaterial.Bundle(),
+    wf.TransformTrait({ position: d.vec3f(0), scale: d.vec3f(3) }),
     wf.ExtraBindingTrait({ group: undefined }),
   );
-
-  wf.connectAsChild(terrarium, halo);
-  wf.connectAsChild(terrarium, bg);
-  wf.connectAsChild(terrarium, volume);
-
-  const goalSphere = world.spawn(
-    wf.MeshTrait(sphereMesh),
-    wf.TransformTrait({
-      position: d.vec3f(),
-      scale: d.vec3f(1),
-    }),
-    ...wf.BlinnPhongMaterial.Bundle({ albedo: d.vec3f() }),
-  );
-
-  wf.connectAsChild(terrarium, goalSphere);
 
   return {
-    get goalReached() {
-      return sim.goalReached;
-    },
-    startLevel(level: Level) {
-      sim.reset();
-
-      world
-        .query(Terrarium, wf.TransformTrait)
-        .updateEach(([terrarium, transform]) => {
-          terrarium.rotationProgress = 0;
-          terrarium.prevRotation = d.vec4f(transform.rotation);
-          quatn.identity(terrarium.targetRotation);
-        });
-
-      const terrainPipeline = root['~unstable']
-        .pipe(cache.inject())
-        .with(levelSlot, level)
-        .withCompute(initTerrain)
-        .createPipeline();
-
-      terrainPipeline.dispatchWorkgroups(
-        Math.ceil(sim.resolution.x / 4),
-        Math.ceil(sim.resolution.y / 4),
-        Math.ceil(sim.resolution.z / 4),
-      );
-
-      // Convert normalized level positions (0-1) to volume coordinates
-      const spawnerPos = level.spawnerPosition.mul(sim.resolution);
-      const goalPos = level.goalPosition.mul(sim.resolution);
-
-      sim.setSpawnerPosition(spawnerPos);
-      sim.setGoalPosition(goalPos);
-      sim.setCreatures(level.creaturePositions ?? []);
-      creatureCount.write(level.creaturePositions?.length ?? 0);
-
-      const goalTransform = wf.getOrThrow(goalSphere, wf.TransformTrait);
-      goalTransform.position.x = level.goalPosition.x - 0.5;
-      goalTransform.position.y = level.goalPosition.y - 0.5;
-      goalTransform.position.z = level.goalPosition.z - 0.5;
-      // TODO: This doesn't work but shoudl (it does not update the transform for some reason)
-      // goalTransform.position = level.goalPosition.sub(0.5);
-    },
     update() {
       const now = (performance.now() / 1000) % 1000;
-      const time = wf.getOrThrow(world, wf.Time);
       timeUniform.write(now);
 
       // biome-ignore lint/style/noNonNullAssertion: there's a camera
@@ -665,105 +466,10 @@ export function createTerrarium(
       const cameraPos = wf.getOrThrow(camera, wf.TransformTrait).position;
       cameraPosUniform.write(cameraPos);
 
-      const inputData = wf.getOrThrow(world, InputData);
-
-      let localGravityDir = d.vec3f(0, -1, 0);
-
-      world
-        .query(Terrarium, wf.TransformTrait)
-        .updateEach(([terrarium, transform]) => {
-          const prevRotation = terrarium.prevRotation;
-          const targetRotation = terrarium.targetRotation;
-          const ang = terrarium.angularMomentum;
-
-          const dragging =
-            inputData.dragging &&
-            Math.abs(inputData.mouseX - 0.5) < 0.2 &&
-            Math.abs(inputData.mouseY - 0.5) < 0.2;
-
-          if (!dragging && (ang.x !== 0 || ang.y !== 0)) {
-            prevRotation.x = transform.rotation.x;
-            prevRotation.y = transform.rotation.y;
-            prevRotation.z = transform.rotation.z;
-            prevRotation.w = transform.rotation.w;
-            terrarium.rotationProgress = 0;
-            const actions = [
-              [d.vec3f(1, 0, 0), ang.x],
-              [d.vec3f(-1, 0, 0), -ang.x],
-              [d.vec3f(0, 1, 0), ang.y],
-              [d.vec3f(0, -1, 0), -ang.y],
-            ] as const;
-            let bestAxis = d.vec3f(1, 0, 0);
-            let bestWeight = 0;
-            for (const [axis, weight] of actions) {
-              if (weight > bestWeight) {
-                bestAxis = axis;
-                bestWeight = weight;
-              }
-            }
-            quatn.mul(
-              quatn.fromAxisAngle(bestAxis, Math.PI / 2, d.vec4f()),
-              targetRotation,
-              targetRotation,
-            );
-            ang.x = 0;
-            ang.y = 0;
-          }
-
-          // Encroaching the rotation
-          terrarium.rotationProgress = wf.encroach(
-            terrarium.rotationProgress,
-            1,
-            0.01,
-            time.deltaSeconds,
-          );
-          quatn.lerp(
-            prevRotation,
-            targetRotation,
-            terrarium.rotationProgress,
-            transform.rotation,
-          );
-          quatn.normalize(transform.rotation, transform.rotation);
-
-          if (dragging) {
-            ang.x += inputData.dragDeltaY * 2;
-            ang.y += inputData.dragDeltaX * 2;
-            quatn.mul(
-              quatn.fromEuler(ang.x, ang.y, 0, 'xyz', d.vec4f()),
-              transform.rotation,
-              transform.rotation,
-            );
-          }
-
-          const worldGravity = vec3n.fromValues(0, -1, 0);
-          const invRotation = quatn.conjugate(transform.rotation);
-          localGravityDir = vec3n.transformQuat(
-            worldGravity,
-            invRotation,
-            d.vec3f(),
-          );
-        });
-
-      sim.tick(world, localGravityDir);
-
       world
         .query(MoldMaterial.Params, wf.ExtraBindingTrait)
         .updateEach(([_params, extraBinding]) => {
           extraBinding.group = renderBindGroups[1 - sim.currentTexture];
-        });
-
-      world
-        .query(BgMaterial.Params, wf.ExtraBindingTrait)
-        .updateEach(([_params, extraBinding]) => {
-          extraBinding.group = renderBindGroups[1 - sim.currentTexture];
-        });
-
-      world
-        .query(HaloMaterial.Params, wf.TransformTrait, wf.ExtraBindingTrait)
-        .updateEach(([_params, transform, extraBinding]) => {
-          extraBinding.group = renderBindGroups[1 - sim.currentTexture];
-
-          transform.scale = d.vec3f(1.1 + std.fract(now) * 0.05);
         });
     },
   };
