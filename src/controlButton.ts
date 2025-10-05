@@ -47,7 +47,7 @@ export function createControlButtons(
     ControlButtonFaceTag,
     wf.MeshTrait(buttonFaceMesh),
     wf.TransformTrait({ position: d.vec3f(0, 0, 0) }),
-    Hoverable({ boundsSize: d.vec3f(0.12) }),
+    Hoverable({ boundsSize: d.vec3f(0.1) }),
     ...EmissiveMaterial.Bundle({ color: d.vec3f(0.6, 0.6, 0.8) }),
   );
   wf.connectAsChild(neck, face);
