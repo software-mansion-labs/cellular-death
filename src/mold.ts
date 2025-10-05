@@ -1,6 +1,6 @@
 import { randf } from '@typegpu/noise';
 import type { World } from 'koota';
-import tgpu, { type TgpuRoot, type TgpuTextureView } from 'typegpu';
+import tgpu, { type TgpuRoot } from 'typegpu';
 import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import * as wf from 'wayfare';

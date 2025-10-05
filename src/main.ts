@@ -57,6 +57,7 @@ function initButtons() {
   // biome-ignore lint/style/noNonNullAssertion: it's fine
   const startButton = document.getElementById('startButton')!;
   if (!startButton) throw new Error('startButton not found');
+  // biome-ignore lint/style/noNonNullAssertion: it's fine
   const clearSaveDataButton = document.getElementById('clearSaveDataButton')!;
   if (!clearSaveDataButton) throw new Error('clearSaveDataButton not found');
 
@@ -165,7 +166,7 @@ async function initGame() {
   resizeCanvas(canvas);
   window.addEventListener('resize', () => resizeCanvas(canvas));
 
-  const buttons = initButtons();
+  initButtons();
   initAgingIndicator();
 
   const world = engine.world;
