@@ -125,20 +125,6 @@ function initButtons() {
   muteButton?.addEventListener('click', () => {
     Tone.getDestination().mute = !Tone.getDestination().mute;
   });
-
-  // reset button
-  const resetButton = document.getElementById('resetButton');
-  let onReset: (() => void) | null = null;
-
-  resetButton?.addEventListener('click', () => {
-    onReset?.();
-  });
-
-  return {
-    setOnReset: (callback: () => void) => {
-      onReset = callback;
-    },
-  };
 }
 
 async function initGame() {
@@ -174,7 +160,7 @@ async function initGame() {
   const world = engine.world;
 
   // Attaches input controls to the canvas
-  createInputManager(world, canvas);
+  const inputManager = createInputManager(world, canvas);
 
   const sun = createSun(root, engine);
 
@@ -185,7 +171,20 @@ async function initGame() {
   const chamber = createChamber(world, foggy.material);
 
   // Control buttons
-  const controlButtons = createControlButtons(world, foggy.material);
+  const controlButtons = createControlButtons(world, foggy.material, () => {
+    if (showingTitleScreen) {
+      return;
+    }
+
+    if (terrarium.goalReached) {
+      // Next level
+      const nextLevel = currentLevelIndex + 1;
+      loadLevel(nextLevel < LEVELS.length ? nextLevel : 0);
+    } else {
+      // Restart
+      loadLevel(currentLevelIndex);
+    }
+  });
 
   // Terrarium (preferably last as far as rendered object go, since it's semi-transparent)
   const terrarium = createTerrarium(root, world);
@@ -219,20 +218,8 @@ async function initGame() {
     }
   }
 
-  buttons.setOnReset(() => loadLevel(gameState.levelIdx));
-
-  document.addEventListener('keydown', (event) => {
-    if (
-      event.code === 'Enter' &&
-      terrarium.goalReached &&
-      !showingTitleScreen
-    ) {
-      const nextLevel = gameState.levelIdx + 1;
-      loadLevel(nextLevel < LEVELS.length ? nextLevel : 0);
-    }
-  });
-
   engine.run(() => {
+    inputManager.update();
     cameraRig.update();
     foggy.update();
     terrarium.update();
