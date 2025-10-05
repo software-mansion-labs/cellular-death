@@ -12,6 +12,7 @@ import { createInputManager } from './inputManager.ts';
 import { LEVELS } from './levels.ts';
 import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
+import { createControlButtons } from './controlButton.ts';
 
 const quality: 'low' | 'high' | 'ultra' = 'ultra';
 let showingTitleScreen = true;
@@ -183,7 +184,10 @@ async function initGame() {
   // Chamber
   const chamber = createChamber(world, foggy.material);
 
-  // Terrarium
+  // Control buttons
+  const controlButtons = createControlButtons(world, foggy.material);
+
+  // Terrarium (preferably last as far as rendered object go, since it's semi-transparent)
   const terrarium = createTerrarium(root, world);
 
   // Camera rig
@@ -231,6 +235,7 @@ async function initGame() {
     terrarium.update();
     sun.update();
     chamber.update();
+    controlButtons.update();
     getDialogBox().update();
 
     if (!levelInitialized) {

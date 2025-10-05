@@ -15,7 +15,7 @@ export function createChamber(world: World, foggyMaterial: FoggyMaterial) {
   world.spawn(
     wf.MeshTrait(chamberMesh),
     wf.TransformTrait({ position: d.vec3f(0, 0, 0), scale: d.vec3f(1) }),
-    ...foggyMaterial.Bundle(),
+    ...foggyMaterial.Bundle({ albedo: d.vec3f(1) }),
   );
 
   // Fans
@@ -23,7 +23,7 @@ export function createChamber(world: World, foggyMaterial: FoggyMaterial) {
     FanTag,
     wf.MeshTrait(fanMesh),
     wf.TransformTrait({ position: d.vec3f(0, 12, 0), scale: d.vec3f(2) }),
-    ...foggyMaterial.Bundle(),
+    ...foggyMaterial.Bundle({ albedo: d.vec3f(1) }),
   );
 
   return {

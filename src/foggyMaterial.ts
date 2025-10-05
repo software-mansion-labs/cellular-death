@@ -11,11 +11,15 @@ const fogEnd = 25;
 const volumetricSteps = 32;
 const fogColor = d.vec3f(0.4, 0.4, 0.55);
 
-const FoggyParams = d.struct({
+const FoggyGlobalParams = d.struct({
   cameraPos: d.vec3f,
   lightDir: d.vec3f,
   lightViewProj: d.mat4x4f,
   time: d.f32,
+});
+
+const FoggyParams = d.struct({
+  albedo: d.vec3f,
 });
 
 const comparisonSampler = tgpu['~unstable'].comparisonSampler({
@@ -24,10 +28,10 @@ const comparisonSampler = tgpu['~unstable'].comparisonSampler({
   minFilter: 'linear',
 });
 
-export type FoggyMaterial = ReturnType<typeof wf.createMaterial>;
+export type FoggyMaterial = ReturnType<typeof createFoggyMaterial>['material'];
 
 export const createFoggyMaterial = (root: TgpuRoot, world: World, sun: Sun) => {
-  const paramsUniform = root.createUniform(FoggyParams);
+  const paramsUniform = root.createUniform(FoggyGlobalParams);
   const shadowMapView = sun.shadowMap.createView(d.textureDepth2d());
 
   const sampleShadowMap = (ndc: d.v3f) => {
@@ -55,6 +59,10 @@ export const createFoggyMaterial = (root: TgpuRoot, world: World, sun: Sun) => {
   };
 
   const material = wf.createMaterial({
+    paramsSchema: FoggyParams,
+    paramsDefaults: {
+      albedo: d.vec3f(1),
+    },
     vertexLayout: wf.POS_NORMAL_UV,
 
     createPipeline({ root, format, $$ }) {
@@ -115,7 +123,7 @@ export const createFoggyMaterial = (root: TgpuRoot, world: World, sun: Sun) => {
         const finalColor = std.mul(
           std.add(ambient, std.mul(att, diffuse)),
           // Albedo
-          d.vec3f(1, 1, 1),
+          $$.params.albedo,
         );
 
         // Fog
