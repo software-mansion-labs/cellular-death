@@ -10,7 +10,13 @@ export interface Level {
    * @param pos Where do we sample (0-1)
    * @returns The density of that cell
    */
-  init: (pos: d.v3f) => number;
+  init: (pos: d.v3f, time: number) => number;
+  /**
+   * Whether the level terrain should be animated by calling init every frame
+   * When true, the init function will be called every frame
+   * @default false
+   */
+  animated?: boolean;
   /**
    * The spawner position in the terrarium (0-1 normalized coordinates)
    */
@@ -148,6 +154,37 @@ export const LEVELS: Level[] = [
       }
 
       dist += noiseValue * 0.04 + noiseValue2 * 0.01;
+
+      return -dist;
+    },
+  },
+  {
+    name: 'Moving Waves',
+    spawnerPosition: d.vec3f(0.1, 0.5, 0.5),
+    goalPosition: d.vec3f(0.9, 0.5, 0.5),
+    animated: true,
+    init: (pos: d.v3f, time: number) => {
+      'kernel';
+
+      const wavesX = std.sin((pos.x * 5 + time) * Math.PI * 2) * 0.1;
+      const wavesZ = std.sin((pos.z * 5 - time) * Math.PI * 2) * 0.1;
+      const waves = wavesX + wavesZ;
+
+      // flat plane with waves
+      let dist = pos.y - 0.4 - waves;
+
+      const moveX = std.sin(pos.x * 10) * 0.2;
+      const obstacle1 = sdBox3d(
+        pos.sub(d.vec3f(0.3 + moveX, 0.35, 0.5)),
+        d.vec3f(0.05, 0.05, 0.05),
+      );
+      const obstacle2 = sdBox3d(
+        pos.sub(d.vec3f(0.6 - moveX, 0.35, 0.5)),
+        d.vec3f(0.05, 0.05, 0.05),
+      );
+
+      dist = std.min(dist, obstacle1);
+      dist = std.min(dist, obstacle2);
 
       return -dist;
     },
