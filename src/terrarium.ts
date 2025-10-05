@@ -185,15 +185,15 @@ export function createTerrarium(root: TgpuRoot, world: World) {
 
           const volumePos = texCoord.mul(VOLUME_SIZE);
           for (let c = d.u32(0); c < creatureCount.$; c = c + 1) {
-            const isEaten = std.atomicLoad(sim.creatures.$[c].eaten);
+            const isEaten = sim.creaturesReadonly.$[c].eaten;
             if (isEaten === 0) {
               const distToCreature = std.length(
-                volumePos.sub(sim.creatures.$[c].position),
+                volumePos.sub(sim.creaturesReadonly.$[c].position),
               );
 
               if (distToCreature < creatureRadius * VOLUME_SIZE) {
                 const creatureNormal = std.normalize(
-                  volumePos.sub(sim.creatures.$[c].position),
+                  volumePos.sub(sim.creaturesReadonly.$[c].position),
                 );
                 const creatureDiffuse = std.max(
                   std.dot(creatureNormal, lightDir),
@@ -666,8 +666,8 @@ export function createTerrarium(root: TgpuRoot, world: World) {
 
       sim.setSpawnerPosition(spawnerPos);
       sim.setGoalPosition(goalPos);
-      sim.setCreatures(level.creaturePositions);
-      creatureCount.write(level.creaturePositions.length);
+      sim.setCreatures(level.creaturePositions ?? []);
+      creatureCount.write(level.creaturePositions?.length ?? 0);
 
       const goalTransform = wf.getOrThrow(goalSphere, wf.TransformTrait);
       goalTransform.position.x = level.goalPosition.x - 0.5;

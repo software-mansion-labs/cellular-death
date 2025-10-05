@@ -52,6 +52,8 @@ function initButtons() {
   // biome-ignore lint/style/noNonNullAssertion: it's fine
   const startButton = document.getElementById('startButton')!;
   if (!startButton) throw new Error('startButton not found');
+  const clearSaveDataButton = document.getElementById('clearSaveDataButton')!;
+  if (!clearSaveDataButton) throw new Error('clearSaveDataButton not found');
 
   function updateUI() {
     if (showingTitleScreen) {
@@ -124,6 +126,10 @@ function initButtons() {
 
   muteButton?.addEventListener('click', () => {
     Tone.getDestination().mute = !Tone.getDestination().mute;
+  });
+
+  clearSaveDataButton.addEventListener('click', () => {
+    gameStateManager.reset();
   });
 }
 

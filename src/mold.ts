@@ -41,6 +41,11 @@ const Agent = d.struct({
 
 const CreatureState = d.struct({
   position: d.vec3f,
+  eaten: d.u32,
+});
+
+const CreatureAtomicState = d.struct({
+  position: d.vec3f,
   eaten: d.atomic(d.u32),
 });
 
@@ -97,14 +102,22 @@ export function createMoldSim(
   });
 
   const MAX_CREATURES = 10;
-  const creatures = root.createMutable(
-    d.arrayOf(CreatureState, MAX_CREATURES),
+
+  const creaturesAtomic = root.createMutable(
+    d.arrayOf(CreatureAtomicState, MAX_CREATURES),
     Array.from({ length: MAX_CREATURES }, (_, i) =>
       i < creaturePositions.length
         ? { position: creaturePositions[i].mul(volumeSize), eaten: 0 }
         : { position: d.vec3f(-9999), eaten: 1 },
     ),
   );
+
+  // A readonly view of the creatures buffer
+  const creaturesReadonly = root.createReadonly(
+    d.arrayOf(CreatureState, MAX_CREATURES),
+    root.unwrap(creaturesAtomic.buffer),
+  );
+
   const creatureCount = root.createUniform(d.u32, creaturePositions.length);
   const maxLifetime = root.createMutable(
     d.atomic(d.u32),
@@ -457,15 +470,15 @@ export function createMoldSim(
 
     if (newIsActive > 0) {
       for (let i = d.u32(0); i < creatureCount.$; i = i + 1) {
-        const creatureEaten = std.atomicLoad(creatures.$[i].eaten);
+        const creatureEaten = std.atomicLoad(creaturesAtomic.$[i].eaten);
         if (creatureEaten === 0) {
           const distToCreature = std.length(
-            newPos.sub(creatures.$[i].position),
+            newPos.sub(creaturesAtomic.$[i].position),
           );
           if (distToCreature < CREATURE_EAT_RADIUS) {
-            const wasAlreadyEaten = std.atomicLoad(creatures.$[i].eaten);
+            const wasAlreadyEaten = std.atomicLoad(creaturesAtomic.$[i].eaten);
             if (wasAlreadyEaten === 0) {
-              std.atomicStore(creatures.$[i].eaten, 1);
+              std.atomicStore(creaturesAtomic.$[i].eaten, 1);
               const lifetimeIncrement = d.u32(LIFETIME_PER_CREATURE * 1000);
               std.atomicAdd(maxLifetime.$, lifetimeIncrement);
             }
@@ -667,7 +680,7 @@ export function createMoldSim(
     }
 
     if (creaturePositions.length > 0) {
-      creatures.write(
+      creaturesAtomic.write(
         creaturePositions.map((pos) => ({
           position: pos.mul(volumeSize),
           eaten: 0,
@@ -684,7 +697,8 @@ export function createMoldSim(
 
   return {
     textures,
-    creatures,
+    creaturesAtomic,
+    creaturesReadonly,
     get currentTexture() {
       return currentTexture;
     },
@@ -703,7 +717,7 @@ export function createMoldSim(
       goalReached = false;
     },
     setCreatures(positions: d.v3f[]) {
-      creatures.write(
+      creaturesAtomic.write(
         Array.from({ length: MAX_CREATURES }, (_, i) =>
           i < positions.length
             ? { position: positions[i].mul(volumeSize), eaten: 0 }

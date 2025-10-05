@@ -22,7 +22,7 @@ export interface Level {
   /**
    * Creature positions in the terrarium (0-1 normalized coordinates)
    */
-  creaturePositions: d.v3f[];
+  creaturePositions?: d.v3f[] | undefined;
 }
 
 export const LEVELS: Level[] = [

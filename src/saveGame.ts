@@ -4,7 +4,7 @@ export const GameState = type({
   levelIdx: 'number',
 });
 
-const defaultGameState = GameState({
+const defaultGameState = GameState.from({
   levelIdx: 0,
 });
 
@@ -93,6 +93,11 @@ const loadGame = onNWJS ? loadGameNWJS : loadGameLocalStorage;
 
 export const gameStateManager = {
   state: loadGame('main'),
+  reset() {
+    saveGame(defaultGameState, 'main');
+    // Reload the page
+    window.location.reload();
+  },
   save() {
     saveGame(this.state, 'main');
   },
