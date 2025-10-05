@@ -2,9 +2,9 @@ import { perlin3d } from '@typegpu/noise';
 import { sdBox2d, sdBox3d, sdSphere } from '@typegpu/sdf';
 import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
-import { gameStateManager } from './saveGame';
-import { level1dialogue } from './dialogue';
 import { getDialogBox } from './dialogBox';
+import { level1dialogue } from './dialogue';
+import { gameStateManager } from './saveGame';
 
 export function getCurrentLevel(): Level | undefined {
   return LEVELS[gameStateManager.state.levelIdx];
@@ -277,6 +277,7 @@ export const LEVELS: Level[] = [
       return -dist;
     },
   },
+
   {
     name: 'Volcano',
     spawnerPosition: d.vec3f(0.5, 0.9, 0.5),
@@ -408,6 +409,57 @@ export const LEVELS: Level[] = [
 
       dist = std.min(dist, obstacle1);
       dist = std.min(dist, obstacle2);
+
+      return -dist;
+    },
+  },
+  {
+    name: 'Orbital Caramba',
+    spawnerPosition: d.vec3f(0.5, 0.5, 0.5),
+    goalPosition: d.vec3f(0.9, 0.5, 0.5),
+    animated: true,
+    init: (pos: d.v3f, time: number) => {
+      'kernel';
+
+      let dist = d.f32(999999);
+
+      // center sphere
+      const centerSphere = sdSphere(pos.sub(d.vec3f(0.5, 0.5, 0.5)), 0.12);
+      dist = std.min(dist, centerSphere);
+
+      const center = d.vec3f(0.5, 0.5, 0.5);
+
+      // horizontal rings
+      const hRadii = [d.f32(0.18), d.f32(0.25), d.f32(0.32)];
+      const hSpeeds = [d.f32(0.6), d.f32(0.8), d.f32(-0.5)];
+
+      for (let ring = 0; ring < 3; ring++) {
+        for (let i = 0; i < 5; i++) {
+          const baseAngle = d.f32((i / 5) * Math.PI * 2);
+          const angle = baseAngle + time * hSpeeds[ring];
+          const x = std.cos(angle) * hRadii[ring];
+          const z = std.sin(angle) * hRadii[ring];
+
+          const sphere = sdSphere(pos.sub(center.add(d.vec3f(x, 0.0, z))), 0.1);
+          dist = std.min(dist, sphere);
+        }
+      }
+
+      //vertical rings
+      const vRadii = [d.f32(0.2), d.f32(0.27), d.f32(0.34)];
+      const vSpeeds = [d.f32(0.7), d.f32(-0.9), d.f32(0.55)];
+
+      for (let ring = 0; ring < 3; ring++) {
+        for (let i = 0; i < 5; i++) {
+          const baseAngle = d.f32((i / 5) * Math.PI * 2);
+          const angle = baseAngle + time * vSpeeds[ring];
+          const x = std.cos(angle) * vRadii[ring];
+          const y = std.sin(angle) * vRadii[ring];
+
+          const sphere = sdSphere(pos.sub(center.add(d.vec3f(x, y, 0.0))), 0.1);
+          dist = std.min(dist, sphere);
+        }
+      }
 
       return -dist;
     },
