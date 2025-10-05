@@ -11,6 +11,7 @@ import { level1dialogue } from './dialogue.ts';
 import { createFoggyMaterial } from './foggyMaterial.ts';
 import { createInputManager } from './inputManager.ts';
 import { LEVELS } from './levels.ts';
+import { gameStateManager } from './saveGame.ts';
 import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
 
@@ -177,11 +178,11 @@ async function initGame() {
 
     if (terrarium.goalReached) {
       // Next level
-      const nextLevel = currentLevelIndex + 1;
+      const nextLevel = gameState.levelIdx + 1;
       loadLevel(nextLevel < LEVELS.length ? nextLevel : 0);
     } else {
       // Restart
-      loadLevel(currentLevelIndex);
+      loadLevel(gameState.levelIdx);
     }
   });
 
@@ -191,7 +192,9 @@ async function initGame() {
   // Camera rig
   const cameraRig = createCameraRig(world);
 
-  let currentLevelIndex = 0;
+  // Reading game state
+  const gameState = gameStateManager.state;
+
   let levelInitialized = false;
   let goalReachedShown = false;
 
@@ -200,13 +203,16 @@ async function initGame() {
 
   function updateLevelIndicator() {
     if (levelIndicator) {
-      levelIndicator.textContent = LEVELS[currentLevelIndex].name;
+      levelIndicator.textContent = LEVELS[gameState.levelIdx].name;
     }
   }
 
   function loadLevel(index: number) {
-    currentLevelIndex = index;
-    terrarium.startLevel(LEVELS[currentLevelIndex]);
+    if (gameState.levelIdx !== index) {
+      gameState.levelIdx = index;
+      gameStateManager.save();
+    }
+    terrarium.startLevel(LEVELS[gameState.levelIdx]);
     updateLevelIndicator();
     goalReachedShown = false;
     if (goalReachedIndicator) {
@@ -226,7 +232,7 @@ async function initGame() {
 
     if (!levelInitialized) {
       levelInitialized = true;
-      loadLevel(0);
+      loadLevel(gameState.levelIdx);
     }
 
     if (terrarium.goalReached && !goalReachedShown && !showingTitleScreen) {
