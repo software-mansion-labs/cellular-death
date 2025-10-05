@@ -2,6 +2,11 @@ import { perlin3d } from '@typegpu/noise';
 import { sdBox2d, sdBox3d, sdSphere } from '@typegpu/sdf';
 import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
+import { gameStateManager } from './saveGame';
+
+export function getCurrentLevel() {
+  return LEVELS[gameStateManager.state.levelIdx];
+}
 
 const sdfCone = (pos: d.v3f, c: d.v2f, h: number) => {
   'kernel';
@@ -260,25 +265,6 @@ export const LEVELS: Level[] = [
     },
   },
   {
-    name: 'The End',
-    ending: true,
-    goalPosition: d.vec3f(0.5, 0.5, 0.05),
-    spawnerPosition: d.vec3f(0, 0.5, 0.5),
-    init: (pos: d.v3f) => {
-      'kernel';
-      let dist = d.f32(999999);
-
-      // Platform
-      dist = std.min(
-        dist,
-        sdBox3d(pos.sub(d.vec3f(0.5, 0.4, 0.5)), d.vec3f(0.3, 0.1, 0.3)),
-      );
-
-      // Turning the SDF into a density field
-      return -dist;
-    },
-  },
-  {
     name: 'Volcano',
     spawnerPosition: d.vec3f(0.5, 0.9, 0.5),
     goalPosition: d.vec3f(0.9, 0.9, 0.5),
@@ -378,6 +364,25 @@ export const LEVELS: Level[] = [
 
       dist += noiseValue * 0.04 + noiseValue2 * 0.01;
 
+      return -dist;
+    },
+  },
+  {
+    name: 'The End',
+    ending: true,
+    goalPosition: d.vec3f(0.5, 0.5, 0.05),
+    spawnerPosition: d.vec3f(0, 0.5, 0.5),
+    init: (pos: d.v3f) => {
+      'kernel';
+      let dist = d.f32(999999);
+
+      // Platform
+      dist = std.min(
+        dist,
+        sdBox3d(pos.sub(d.vec3f(0.5, 0.4, 0.5)), d.vec3f(0.3, 0.1, 0.3)),
+      );
+
+      // Turning the SDF into a density field
       return -dist;
     },
   },

@@ -1,13 +1,15 @@
-import type { World } from 'koota';
+import type { Entity, World } from 'koota';
 import tgpu, { type TgpuRoot } from 'typegpu';
 import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import * as wf from 'wayfare';
 import { createBoxMesh } from './boxMesh.ts';
 import type { createMoldSim } from './mold.ts';
+import { gameStateManager } from './saveGame.ts';
+import { getCurrentLevel, LEVELS } from './levels.ts';
 
 const VOLUME_SIZE = 128;
-const RAYMARCH_STEPS = 256;
+const RAYMARCH_STEPS = 32;
 const DENSITY_MULTIPLIER = 20;
 
 const boxMesh = createBoxMesh(0.5, 0.5, 0.5);
@@ -102,7 +104,7 @@ export function createChamberOverlay(
         const rayDir = std.normalize(boxFar.sub(near));
         // We're just backing up a bit to start marching.
         // Taking the largest possible length through the box (lazy approx)
-        const boxNear = boxFar.sub(rayDir.mul(2));
+        const boxNear = boxFar.sub(rayDir.mul(1));
 
         const rayOrigin = near;
 
@@ -179,135 +181,6 @@ export function createChamberOverlay(
           }
 
           if (transmittance <= TMin) {
-            break;
-          }
-
-          const terrainValue = std.textureSampleLevel(
-            terrainSampled.$,
-            sampler,
-            texCoord,
-            0,
-          ).x;
-
-          if (terrainValue > 0.07) {
-            const edgeThreshold = d.f32(0.05);
-            let terrainNormal = d.vec3f(0, 1, 0);
-            let boxNormal = d.vec3f(0, 0, 0);
-            let edgeWeight = d.f32(0);
-
-            const distX = std.min(texCoord.x, 1.0 - texCoord.x);
-            const distY = std.min(texCoord.y, 1.0 - texCoord.y);
-            const distZ = std.min(texCoord.z, 1.0 - texCoord.z);
-
-            if (distX < edgeThreshold) {
-              const weight = 1.0 - distX / edgeThreshold;
-              const wallNormal = std.select(
-                d.vec3f(1, 0, 0),
-                d.vec3f(-1, 0, 0),
-                texCoord.x > 0.5,
-              );
-              boxNormal = boxNormal.add(wallNormal.mul(weight));
-              edgeWeight = edgeWeight + weight;
-            }
-            if (distY < edgeThreshold) {
-              const weight = 1.0 - distY / edgeThreshold;
-              const wallNormal = std.select(
-                d.vec3f(0, 1, 0),
-                d.vec3f(0, -1, 0),
-                texCoord.y > 0.5,
-              );
-              boxNormal = boxNormal.add(wallNormal.mul(weight));
-              edgeWeight = edgeWeight + weight;
-            }
-            if (distZ < edgeThreshold) {
-              const weight = 1.0 - distZ / edgeThreshold;
-              const wallNormal = std.select(
-                d.vec3f(0, 0, 1),
-                d.vec3f(0, 0, -1),
-                texCoord.z > 0.5,
-              );
-              boxNormal = boxNormal.add(wallNormal.mul(weight));
-              edgeWeight = edgeWeight + weight;
-            }
-
-            if (edgeWeight > 0) {
-              boxNormal = std.normalize(boxNormal);
-            }
-
-            let gradientNormal = d.vec3f(0, 1, 0);
-            {
-              const gradientOffset = d.f32(1.0 / VOLUME_SIZE);
-              const texCoordMin = d.vec3f(0.0);
-              const texCoordMax = d.vec3f(1.0);
-
-              const texCoordX = std.clamp(
-                texCoord.add(d.vec3f(gradientOffset, 0, 0)),
-                texCoordMin,
-                texCoordMax,
-              );
-              const texCoordY = std.clamp(
-                texCoord.add(d.vec3f(0, gradientOffset, 0)),
-                texCoordMin,
-                texCoordMax,
-              );
-              const texCoordZ = std.clamp(
-                texCoord.add(d.vec3f(0, 0, gradientOffset)),
-                texCoordMin,
-                texCoordMax,
-              );
-
-              const terrainX = std.textureSampleLevel(
-                terrainSampled.$,
-                sampler,
-                texCoordX,
-                0,
-              ).x;
-              const terrainY = std.textureSampleLevel(
-                terrainSampled.$,
-                sampler,
-                texCoordY,
-                0,
-              ).x;
-              const terrainZ = std.textureSampleLevel(
-                terrainSampled.$,
-                sampler,
-                texCoordZ,
-                0,
-              ).x;
-
-              const terrainGradient = d.vec3f(
-                terrainX - terrainValue,
-                terrainY - terrainValue,
-                terrainZ - terrainValue,
-              );
-
-              const terrainGradientLength = std.length(terrainGradient);
-              if (terrainGradientLength > 0.001) {
-                gradientNormal = std.normalize(terrainGradient);
-              }
-            }
-
-            if (edgeWeight > 0) {
-              const blendFactor = std.saturate(edgeWeight);
-              terrainNormal = std.normalize(
-                std.mix(gradientNormal, boxNormal, blendFactor),
-              );
-            } else {
-              terrainNormal = gradientNormal;
-            }
-
-            const terrainDiffuse = std.max(
-              std.dot(terrainNormal, lightDir),
-              0.0,
-            );
-            const terrainLighting =
-              ambientLight + diffuseStrength * terrainDiffuse;
-
-            const terrainContrib = terrainAlbedo
-              .mul(terrainLighting)
-              .mul(transmittance * 3);
-            accum = accum.add(terrainContrib);
-            transmittance = d.f32(0);
             break;
           }
 
@@ -448,13 +321,7 @@ export function createChamberOverlay(
   );
 
   // Ray-marched volume
-  world.spawn(
-    wf.MeshTrait(boxMesh),
-    ...wf.BlinnPhongMaterial.Bundle({ albedo: d.vec3f(1, 0, 0) }),
-    // ...MoldMaterial.Bundle(),
-    wf.TransformTrait({ position: d.vec3f(0), scale: d.vec3f(3) }),
-    wf.ExtraBindingTrait({ group: undefined }),
-  );
+  let overlay: Entity | undefined;
 
   return {
     update() {
@@ -471,6 +338,23 @@ export function createChamberOverlay(
         .updateEach(([_params, extraBinding]) => {
           extraBinding.group = renderBindGroups[1 - sim.currentTexture];
         });
+
+      if (getCurrentLevel().ending) {
+        if (!overlay) {
+          overlay = world.spawn(
+            wf.MeshTrait(boxMesh),
+            // ...wf.BlinnPhongMaterial.Bundle({ albedo: d.vec3f(1, 0, 0) }),
+            ...MoldMaterial.Bundle(),
+            wf.TransformTrait({ position: d.vec3f(0), scale: d.vec3f(10.9) }),
+            wf.ExtraBindingTrait({ group: undefined }),
+          );
+        }
+      } else {
+        if (overlay) {
+          overlay.destroy();
+          overlay = undefined;
+        }
+      }
     },
   };
 }
