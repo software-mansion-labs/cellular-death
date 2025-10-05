@@ -7,6 +7,7 @@ import { EmissiveMaterial } from './emissiveMaterial';
 import type { FoggyMaterial } from './foggyMaterial';
 import { Hoverable } from './hoverable';
 import { InputData } from './inputManager';
+import { getCurrentLevel } from './levels';
 import { gameStateManager } from './saveGame';
 
 const ControlButtonTag = trait();
@@ -61,11 +62,13 @@ export function createControlButtons(
       const time = wf.getOrThrow(world, wf.Time);
       const inputData = wf.getOrThrow(world, InputData);
 
+      const active =
+        gameStateManager.state.introMonologueStep > 0 &&
+        !getCurrentLevel()?.ending;
+
       world
         .query(ControlButtonTag, wf.TransformTrait)
         .updateEach(([transform]) => {
-          const active = gameStateManager.state.introMonologueStep > 0;
-
           transform.position.y = wf.encroach(
             transform.position.y,
             active ? ACTIVE_Y : INACTIVE_Y,
@@ -85,7 +88,7 @@ export function createControlButtons(
             params.color = d.vec3f(0.9, 0.9, 1);
           }
 
-          if (hoverable.hover && inputData.justLeftClicked) {
+          if (hoverable.hover && inputData.justLeftClicked && active) {
             onPress();
           }
         });

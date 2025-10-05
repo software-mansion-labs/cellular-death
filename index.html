@@ -17,17 +17,17 @@
         </div>
         <div
             id="titleScreen"
-            class="group z-10 absolute inset-0 bg-black flex flex-col justify-center items-center text-white font-sans opacity-100 transition-opacity duration-1000 data-[state=hidden]:opacity-0 data-[state=hidden]:pointer-events-none data-[variant=pause]:bg-black/60"
+            class="group z-10 absolute inset-0 bg-black flex flex-col justify-center items-center text-white font-sans opacity-100 transition-opacity duration-1000 data-[state=hidden]:opacity-0 data-[state=hidden]:pointer-events-none"
         >
             <div class="relative brightness-[71%] contrast-[1000%]">
                 <img
                     src="assets/cellular-death-title.png"
                     alt="Cellular Death Logo"
-                    class="w-[70vw]"
+                    class="w-[70vw] mb-8"
                 />
                 <div
                     id="animated-ball"
-                    class="absolute z-10 left-[20%] bottom-[36%] bg-white w-16 h-16 blur-2xl animate-bounce"
+                    class="absolute z-10 bg-white w-16 h-16 blur-2xl animate-bounce"
                 ></div>
                 <script type="module">
                     const ball = document.getElementById("animated-ball");
@@ -40,7 +40,6 @@
                     requestAnimationFrame(animate);
                 </script>
             </div>
-            <!--<h1>Cellular Death</h1>-->
             <div class="flex flex-col gap-4">
                 <button
                     id="startButton"
@@ -67,7 +66,7 @@
         >
             Rapid Aging Active (D)
         </div>
-        <div
+        <!--<div
             id="goalReachedIndicator"
             class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-500"
         >
@@ -79,7 +78,7 @@
                     Press the button in front of you to continue.
                 </p>
             </div>
-        </div>
+        </div>-->
         <div id="menuButtons" class="z-20">
             <button id="fullscreenButton">
                 <img

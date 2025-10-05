@@ -4,10 +4,13 @@ import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import { getDialogBox } from './dialogBox';
 import {
+  endingDialogue,
   firstSlopesDialogue,
   level1dialogue,
   level1EndDialogue,
+  voidMonologue,
 } from './dialogue';
+import { endingState } from './endingState';
 import { gameStateManager } from './saveGame';
 
 export function getCurrentLevel(): Level | undefined {
@@ -424,7 +427,29 @@ export const LEVELS: Level[] = [
     name: 'The End',
     ending: true,
     goalPosition: d.vec3f(0.5, 0.5, 0.05),
-    spawnerPosition: d.vec3f(0, 0.5, 0.5),
+    spawnerPosition: d.vec3f(1, 0.5, 0.5),
+    onStart() {
+      getDialogBox().enqueueMessage(...endingDialogue);
+    },
+    onFinish() {
+      // Start breaking the wall immediately
+      endingState.step++;
+
+      // After 4 seconds, start falling
+      setTimeout(() => {
+        endingState.step++;
+      }, 4000);
+
+      // After 10 seconds, we're in the void
+      setTimeout(() => {
+        getDialogBox().enqueueMessage(...voidMonologue);
+      }, 10000);
+
+      // After 20 seconds, we're done
+      setTimeout(() => {
+        endingState.step++;
+      }, 20000);
+    },
     init: (pos: d.v3f) => {
       'kernel';
       let dist = d.f32(999999);

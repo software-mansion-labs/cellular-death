@@ -6,6 +6,12 @@ import * as std from 'typegpu/std';
 import * as wf from 'wayfare';
 import { quatn, vec3n } from 'wgpu-matrix';
 import { createBoxMesh } from './boxMesh.ts';
+import {
+  endingState,
+  POUR_MOLD_STEP,
+  SHOW_CUBE_STEP,
+  WALL_IS_BREAKING_STEP,
+} from './endingState.ts';
 import { InputData } from './inputManager.ts';
 import { getCurrentLevel, type Level } from './levels.ts';
 import type { createMoldSim } from './mold.ts';
@@ -18,7 +24,7 @@ const HALO_COLOR = d.vec3f(1, 1, 1);
 const boxMesh = createBoxMesh(0.5, 0.5, 0.5);
 const sphereMesh = createSphereMesh(0.05, 12, 8);
 
-const Terrarium = trait({
+export const Terrarium = trait({
   angularMomentum: () => d.vec2f(),
   prevRotation: () => quatn.identity(d.vec4f()),
   targetRotation: () => quatn.identity(d.vec4f()),
@@ -693,6 +699,19 @@ export function createTerrarium(
 
       let localGravityDir = d.vec3f(0, -1, 0);
 
+      const level = getCurrentLevel();
+      const active =
+        !!level &&
+        (!level.ending ||
+          (endingState.step >= SHOW_CUBE_STEP &&
+            endingState.step < WALL_IS_BREAKING_STEP));
+      const shouldSimulate =
+        active ||
+        (level?.ending &&
+          (endingState.step === POUR_MOLD_STEP ||
+            endingState.step === WALL_IS_BREAKING_STEP));
+      const smallScale = level?.ending;
+
       world
         .query(Terrarium, wf.TransformTrait)
         .updateEach(([terrarium, transform]) => {
@@ -749,7 +768,7 @@ export function createTerrarium(
           );
           quatn.normalize(transform.rotation, transform.rotation);
 
-          if (dragging) {
+          if (dragging && active) {
             ang.x += inputData.dragDeltaY * 2;
             ang.y += inputData.dragDeltaX * 2;
             quatn.mul(
@@ -768,8 +787,26 @@ export function createTerrarium(
           );
 
           // Enter/Exit animation
-          const shouldShow = !!getCurrentLevel();
-          if (shouldShow) {
+          if (active && smallScale) {
+            transform.scale.x = wf.encroach(
+              transform.scale.x,
+              0.5,
+              0.01,
+              time.deltaSeconds,
+            );
+            transform.scale.y = wf.encroach(
+              transform.scale.y,
+              0.5,
+              0.01,
+              time.deltaSeconds,
+            );
+            transform.scale.z = wf.encroach(
+              transform.scale.z,
+              0.5,
+              0.01,
+              time.deltaSeconds,
+            );
+          } else if (active) {
             transform.scale.x = wf.encroach(
               transform.scale.x,
               1,
@@ -790,19 +827,19 @@ export function createTerrarium(
             transform.scale.x = wf.encroach(
               transform.scale.x,
               0,
-              0.1,
+              0.02,
               time.deltaSeconds,
             );
             transform.scale.y = wf.encroach(
               transform.scale.y,
               0,
-              0.1,
+              0.02,
               time.deltaSeconds,
             );
             transform.scale.z = wf.encroach(
               transform.scale.z,
               0,
-              0.1,
+              0.02,
               time.deltaSeconds,
             );
           }
@@ -814,7 +851,9 @@ export function createTerrarium(
           });
         });
 
-      sim.tick(world, localGravityDir);
+      if (shouldSimulate) {
+        sim.tick(world, localGravityDir);
+      }
 
       world
         .query(MoldMaterial.Params, wf.ExtraBindingTrait)

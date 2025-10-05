@@ -9,6 +9,7 @@ import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import * as wf from 'wayfare';
 import { mat4n, quatn } from 'wgpu-matrix';
+import { Terrarium } from './terrarium';
 
 interface Transform {
   position: d.v3f;
@@ -79,46 +80,59 @@ export function createSun(root: TgpuRoot, engine: wf.Engine): Sun {
     clearColor: [0, 0, 0, 1],
   };
 
-  const lightOrigin = d.vec3f(0, 16, 0);
-  const lightDir = std.normalize(d.vec3f(-0.3, -1, 0.1));
-
-  const lightRotMat = mat4n.cameraAim(
-    lightOrigin,
-    lightOrigin.add(lightDir),
-    d.vec3f(0, 1, 0),
-    d.mat4x4f(),
-  );
-
-  const lightTransform: Transform = {
-    position: lightOrigin,
-    rotation: quatn.fromMat(lightRotMat, d.vec4f()),
-    scale: d.vec3f(1),
-  };
-
+  const baseLightDir = std.normalize(d.vec3f(-0.3, -1, 0.1));
   const viewProjMat = d.mat4x4f();
-
-  const view = mat4n.lookAt(
-    lightOrigin,
-    lightOrigin.add(lightDir),
-    d.vec3f(0, 1, 0),
-    d.mat4x4f(),
-  );
-  const proj = mat4n.ortho(
-    orthographicConfig.left,
-    orthographicConfig.right,
-    orthographicConfig.bottom,
-    orthographicConfig.top,
-    orthographicConfig.near,
-    orthographicConfig.far,
-    d.mat4x4f(),
-  );
-  mat4n.mul(proj, view, viewProjMat);
+  const lightDir = d.vec3f(baseLightDir);
 
   return {
     viewProjMat,
     direction: lightDir,
     shadowMap,
     update() {
+      const terrariumEntity = engine.world.queryFirst(Terrarium);
+      const terrariumTransform = terrariumEntity?.get(wf.TransformTrait);
+
+      let lightOrigin = d.vec3f(0, 16, 0);
+
+      if (terrariumTransform) {
+        const rotMat = mat4n.fromQuat(terrariumTransform.rotation, d.mat4x4f());
+        lightOrigin = rotMat.mul(d.vec4f(lightOrigin, 1)).xyz;
+        const newLightDir = rotMat.mul(d.vec4f(baseLightDir, 0)).xyz;
+        lightDir.x = newLightDir.x;
+        lightDir.y = newLightDir.y;
+        lightDir.z = newLightDir.z;
+      }
+
+      const lightRotMat = mat4n.cameraAim(
+        lightOrigin,
+        lightOrigin.add(lightDir),
+        d.vec3f(0, 1, 0),
+        d.mat4x4f(),
+      );
+
+      const view = mat4n.lookAt(
+        lightOrigin,
+        lightOrigin.add(lightDir),
+        d.vec3f(0, 1, 0),
+        d.mat4x4f(),
+      );
+      const proj = mat4n.ortho(
+        orthographicConfig.left,
+        orthographicConfig.right,
+        orthographicConfig.bottom,
+        orthographicConfig.top,
+        orthographicConfig.near,
+        orthographicConfig.far,
+        d.mat4x4f(),
+      );
+      mat4n.mul(proj, view, viewProjMat);
+
+      const lightTransform: Transform = {
+        position: lightOrigin,
+        rotation: quatn.fromMat(lightRotMat, d.vec4f()),
+        scale: d.vec3f(1),
+      };
+
       engine.renderer.setPOV(lightTransform, orthographicConfig);
 
       // Rendering to the shadow-map
