@@ -5,17 +5,17 @@ import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import * as wf from 'wayfare';
 import { quatn } from 'wgpu-matrix';
-import chamberUrl from './assets/chamber.obj?url';
-import fanUrl from './assets/fan.obj?url';
 import type { Sun } from './sun';
 
 const fogStart = 1;
 const fogEnd = 25;
 const volumetricSteps = 32;
 const fogColor = d.vec3f(0.4, 0.4, 0.55);
-// TODO: Preload in parallel
-const chamberMesh = await wf.meshAsset({ url: chamberUrl }).preload();
-const fanMesh = await wf.meshAsset({ url: fanUrl }).preload();
+
+const [chamberMesh, fanMesh] = await Promise.all([
+  wf.meshAsset({ url: '/assets/models/chamber.obj' }).preload(),
+  wf.meshAsset({ url: '/assets/models/fan.obj' }).preload(),
+]);
 
 const FanTag = trait();
 
