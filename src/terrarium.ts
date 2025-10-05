@@ -600,11 +600,15 @@ export function createTerrarium(root: TgpuRoot, world: World) {
     get goalReached() {
       return sim.goalReached;
     },
-    reset() {
-      sim.reset();
-    },
     startLevel(level: Level) {
       sim.reset();
+
+      world.query(Terrarium, wf.TransformTrait).updateEach(([terrarium, transform]) => {
+        terrarium.rotationProgress = 0;
+        terrarium.prevRotation = d.vec4f(transform.rotation);
+        quatn.identity(terrarium.targetRotation);
+      });
+
       const terrainPipeline = root['~unstable']
         .pipe(cache.inject())
         .with(levelSlot, level)
@@ -652,7 +656,10 @@ export function createTerrarium(root: TgpuRoot, world: World) {
           const targetRotation = terrarium.targetRotation;
           const ang = terrarium.angularMomentum;
 
-          const dragging = inputData.dragging && Math.abs(inputData.mouseX - 0.5) < 0.2 && Math.abs(inputData.mouseY - 0.5) < 0.2;
+          const dragging =
+            inputData.dragging &&
+            Math.abs(inputData.mouseX - 0.5) < 0.2 &&
+            Math.abs(inputData.mouseY - 0.5) < 0.2;
 
           if (!dragging && (ang.x !== 0 || ang.y !== 0)) {
             prevRotation.x = transform.rotation.x;

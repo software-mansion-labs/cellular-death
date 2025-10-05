@@ -71,28 +71,26 @@ export function createCameraRig(world: World) {
 
           const zooming = wf.Input.isKeyDown('Space');
 
-          // if (!inputData.dragging) {
-            data.smoothYaw = wf.encroach(
-              data.smoothYaw,
-              zooming ? mx * 1.5 : curveLookAngle(mx),
-              0.1,
-              dt,
-            );
-            data.smoothPitch = wf.encroach(
-              data.smoothPitch,
-              zooming ? my * 1.5 : curveLookAngle(my),
-              0.1,
-              dt,
-            );
+          data.smoothYaw = wf.encroach(
+            data.smoothYaw,
+            zooming ? mx * 1.5 : curveLookAngle(mx),
+            0.1,
+            dt,
+          );
+          data.smoothPitch = wf.encroach(
+            data.smoothPitch,
+            zooming ? my * 1.5 : curveLookAngle(my),
+            0.1,
+            dt,
+          );
 
-            transform.rotation = quatn.fromEuler(
-              -data.smoothPitch,
-              -data.smoothYaw,
-              0,
-              'zyx',
-              d.vec4f(),
-            );
-          // }
+          transform.rotation = quatn.fromEuler(
+            -data.smoothPitch,
+            -data.smoothYaw,
+            0,
+            'zyx',
+            d.vec4f(),
+          );
 
           // Zoom
           data.zoom = wf.encroach(data.zoom, zooming ? 1 : 0, 0.01, dt);
