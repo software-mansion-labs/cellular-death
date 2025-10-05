@@ -12,14 +12,35 @@
             <div
                 id="dialogBox"
                 data-state="hidden"
-                class="w-[90%] mx-auto max-w-[800px] mb-5 bg-black/60 text-white text-xl px-4 py-6 rounded-xl backdrop-blur text-center shadow opacity-0 transition-none data-[state=visible]:opacity-100 data-[state=visible]:transition-opacity duration-1000 ease-in-out"
+                class="w-[90%] mx-auto max-w-[800px] mb-5 bg-black/60 text-white text-xl px-4 py-6 rounded-xl backdrop-blur text-justify shadow opacity-0 transition-none data-[state=visible]:opacity-100 data-[state=visible]:transition-opacity duration-1000 ease-in-out"
             ></div>
         </div>
         <div
             id="titleScreen"
-            class="group z-10 absolute inset-0 bg-black flex flex-col items-center pt-[30vh] text-white font-sans opacity-100 transition-opacity duration-1000 data-[state=hidden]:opacity-0 data-[state=hidden]:pointer-events-none data-[variant=pause]:bg-black/60"
+            class="group z-10 absolute inset-0 bg-black flex flex-col justify-center items-center text-white font-sans opacity-100 transition-opacity duration-1000 data-[state=hidden]:opacity-0 data-[state=hidden]:pointer-events-none data-[variant=pause]:bg-black/60"
         >
-            <h1>Cellular Death</h1>
+            <div class="relative brightness-[71%] contrast-[1000%]">
+                <img
+                    src="assets/cellular-death-title.png"
+                    alt="Cellular Death Logo"
+                    class="w-[70vw]"
+                />
+                <div
+                    id="animated-ball"
+                    class="absolute z-10 left-[20%] bottom-[36%] bg-white w-16 h-16 blur-2xl animate-bounce"
+                ></div>
+                <script type="module">
+                    const ball = document.getElementById("animated-ball");
+
+                    function animate() {
+                        ball.style.left = `${Math.sin(Date.now() * 0.0007) * 30 + 50}%`;
+                        ball.style.top = `${Math.cos(Date.now() * 0.0005122) * 12 + 50}%`;
+                        requestAnimationFrame(animate);
+                    }
+                    requestAnimationFrame(animate);
+                </script>
+            </div>
+            <!--<h1>Cellular Death</h1>-->
             <div class="flex flex-col gap-4">
                 <button
                     id="startButton"
@@ -29,8 +50,8 @@
                         Begin the experiment
                     </span>
                     <span class="hidden group-data-[variant=pause]:inline">
-                        Resume</span
-                    >
+                        Resume
+                    </span>
                 </button>
                 <button
                     id="clearSaveDataButton"
@@ -66,6 +87,13 @@
             </div>
         </div>
         <div id="menuButtons" class="z-20">
+            <button id="fullscreenButton">
+                <img
+                    src="/assets/icons/fullscreen.svg"
+                    alt="Fullscreen/Windowed"
+                    draggable="false"
+                />
+            </button>
             <button id="muteButton">
                 <img
                     class="unmuted"
@@ -84,22 +112,33 @@
         <div
             id="webgpuErrorModal"
             class="absolute inset-0 bg-black/95 flex flex-col items-center justify-center text-white font-sans z-50"
-            style="display: none;"
+            style="display: none"
         >
-            <div class="max-w-md p-8 bg-black border border-white/20 rounded-xl shadow-lg text-center">
+            <div
+                class="max-w-md p-8 bg-black border border-white/20 rounded-xl shadow-lg text-center"
+            >
                 <h2 class="text-3xl mb-4">WebGPU Not Supported</h2>
                 <p class="text-xl mb-6">
-                    Your browser doesn't support WebGPU, which is required to run this application.
+                    Your browser doesn't support WebGPU, which is required to
+                    run this application.
                 </p>
                 <p class="mb-6">
-                    We encourage you to install the desktop version of the game, or try a compatible browser:
+                    We encourage you to install the desktop version of the game,
+                    or try a compatible browser:
                 </p>
                 <ul class="mb-6 space-y-2 text-left mx-auto max-w-xs">
                     <li>• Chrome (version 113 or later)</li>
                     <li>• Edge (version 113 or later)</li>
-                    <li>• Firefox (version 116 or later, with webgpu flags enabled)</li>
+                    <li>
+                        • Firefox (version 116 or later, with webgpu flags
+                        enabled)
+                    </li>
                 </ul>
-                <a href="https://caniuse.com/webgpu" target="_blank" class="inline-block border p-3 hover:bg-white/10 transition-colors duration-200">
+                <a
+                    href="https://caniuse.com/webgpu"
+                    target="_blank"
+                    class="inline-block border p-3 hover:bg-white/10 transition-colors duration-200"
+                >
                     Learn more about WebGPU support
                 </a>
             </div>

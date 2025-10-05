@@ -7,6 +7,7 @@ import * as wf from 'wayfare';
 import { createCameraRig } from './cameraRig.ts';
 import { createChamber } from './chamber.ts';
 import { createChamberOverlay } from './chamberOverlay.ts';
+import { isWebGPUSupported, showWebGPUErrorModal } from './checkWebgpu.ts';
 import { createControlButtons } from './controlButton.ts';
 import { getDialogBox } from './dialogBox.ts';
 import { introMonologue } from './dialogue.ts';
@@ -17,7 +18,6 @@ import { createMoldSim } from './mold.ts';
 import { gameStateManager } from './saveGame.ts';
 import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
-import { isWebGPUSupported, showWebGPUErrorModal } from './checkWebgpu.ts';
 import { beginSfx, backgroudMusic, resetSfx } from './sfx.ts';
 
 const VOLUME_SIZE = 128;
@@ -82,8 +82,7 @@ function initButtons() {
       // Waiting for 3 seconds
       await new Promise((resolve) => setTimeout(resolve, 3000));
       getDialogBox().enqueueMessage(...introMonologue);
-    }
-    else {
+    } else {
       level.onStart?.();
     }
   }
@@ -121,6 +120,7 @@ function initButtons() {
   const muteButton = document.getElementById('muteButton');
   const unmutedIcon = muteButton?.querySelector('.unmuted');
   const mutedIcon = muteButton?.querySelector('.muted');
+  const fullscreenButton = document.getElementById('fullscreenButton');
   mutedIcon?.setAttribute('style', 'display: none');
 
   let isMuted = false;
@@ -140,13 +140,22 @@ function initButtons() {
     Tone.getDestination().mute = !Tone.getDestination().mute;
   });
 
+  fullscreenButton?.addEventListener('click', () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  });
+
   clearSaveDataButton.addEventListener('click', () => {
     gameStateManager.reset();
   });
 }
 
 async function initGame() {
-
   if (!isWebGPUSupported()) {
     showWebGPUErrorModal();
     return;
@@ -161,135 +170,139 @@ async function initGame() {
     const canvas = document.querySelector('canvas') as HTMLCanvasElement;
     const context = canvas.getContext('webgpu') as GPUCanvasContext;
 
-  const renderer = new wf.Renderer(root, canvas, context);
-  const engine = new wf.Engine(root, renderer);
+    const renderer = new wf.Renderer(root, canvas, context);
+    const engine = new wf.Engine(root, renderer);
 
-  const resizeCanvas = (canvas: HTMLCanvasElement) => {
-    const dpr =
-      (window.devicePixelRatio || 1) *
-      {
-        low: 0.25,
-        high: 0.5,
-        ultra: 1,
-      }[quality];
-    canvas.width = canvas.clientWidth * dpr;
-    canvas.height = canvas.clientHeight * dpr;
-    renderer.updateViewport(canvas.width, canvas.height);
-  };
-  resizeCanvas(canvas);
-  window.addEventListener('resize', () => resizeCanvas(canvas));
+    const resizeCanvas = (canvas: HTMLCanvasElement) => {
+      const dpr =
+        (window.devicePixelRatio || 1) *
+        {
+          low: 0.25,
+          high: 0.5,
+          ultra: 1,
+        }[quality];
+      canvas.width = canvas.clientWidth * dpr;
+      canvas.height = canvas.clientHeight * dpr;
+      renderer.updateViewport(canvas.width, canvas.height);
+    };
+    resizeCanvas(canvas);
+    window.addEventListener('resize', () => resizeCanvas(canvas));
 
-  initButtons();
-  initAgingIndicator();
+    initButtons();
+    initAgingIndicator();
 
-  const world = engine.world;
+    const world = engine.world;
 
-  // Attaches input controls to the canvas
-  const inputManager = createInputManager(world, canvas);
+    // Attaches input controls to the canvas
+    const inputManager = createInputManager(world, canvas);
 
-  const sun = createSun(root, engine);
+    const sun = createSun(root, engine);
 
-  // Foggy
-  const foggy = createFoggyMaterial(root, world, sun);
+    // Foggy
+    const foggy = createFoggyMaterial(root, world, sun);
 
-  // Chamber
-  const chamber = createChamber(world, foggy.material);
+    // Chamber
+    const chamber = createChamber(world, foggy.material);
 
-  // Control buttons
-  const controlButtons = createControlButtons(world, foggy.material, () => {
-    if (showingTitleScreen) {
-      return;
-    }
+    // Control buttons
+    const controlButtons = createControlButtons(world, foggy.material, () => {
+      if (showingTitleScreen) {
+        return;
+      }
 
-    if (terrarium.goalReached || gameState.levelIdx === -1) {
-      // Next level
-      const nextLevel = gameState.levelIdx + 1;
-      loadLevel(nextLevel < LEVELS.length ? nextLevel : 0);
-    } else {
-      // Restart
-      loadLevel(gameState.levelIdx);
-    }
+      if (terrarium.goalReached || gameState.levelIdx === -1) {
+        // Next level
+        const nextLevel = gameState.levelIdx + 1;
+        loadLevel(nextLevel < LEVELS.length ? nextLevel : 0);
+      } else {
+        // Restart
+        loadLevel(gameState.levelIdx);
+      }
     resetSfx.start();
-  });
+    });
 
-  const sim = createMoldSim(
-    root,
-    VOLUME_SIZE,
-    {
-      spawnPoint: d.vec3f(9999),
-      spawnRate: 5_000,
-      targetCount: 100_000,
-    },
-    d.vec3f(-9999),
-    [],
-  );
+    const sim = createMoldSim(
+      root,
+      VOLUME_SIZE,
+      {
+        spawnPoint: d.vec3f(9999),
+        spawnRate: 5_000,
+        targetCount: 100_000,
+      },
+      d.vec3f(-9999),
+      [],
+    );
 
-  // Chamber overlay
-  const chamberOverlay = createChamberOverlay(root, world, sim);
+    // Chamber overlay
+    const chamberOverlay = createChamberOverlay(root, world, sim);
 
-  // Terrarium (preferably last as far as rendered object go, since it's semi-transparent)
-  const terrarium = createTerrarium(root, world, sim);
+    // Terrarium (preferably last as far as rendered object go, since it's semi-transparent)
+    const terrarium = createTerrarium(root, world, sim);
 
-  // Camera rig
-  const cameraRig = createCameraRig(world);
+    // Camera rig
+    const cameraRig = createCameraRig(world);
 
-  // Reading game state
-  const gameState = gameStateManager.state;
+    // Reading game state
+    const gameState = gameStateManager.state;
 
-  let levelInitialized = false;
-  let goalReachedShown = false;
+    let levelInitialized = false;
+    let goalReachedShown = false;
 
-  const goalReachedIndicator = document.getElementById('goalReachedIndicator');
-  const levelIndicator = document.getElementById('levelIndicator');
+    const goalReachedIndicator = document.getElementById(
+      'goalReachedIndicator',
+    );
+    const levelIndicator = document.getElementById('levelIndicator');
 
-  function updateLevelIndicator() {
-    if (levelIndicator) {
-      levelIndicator.textContent = getCurrentLevel()?.name ?? '';
-    }
-  }
-
-  function loadLevel(index: number) {
-    if (gameState.levelIdx !== index) {
-      gameState.levelIdx = index;
-      gameStateManager.save();
-
-      LEVELS[gameState.levelIdx].onStart?.();
-    }
-    terrarium.startLevel(LEVELS[gameState.levelIdx]);
-    updateLevelIndicator();
-    goalReachedShown = false;
-    if (goalReachedIndicator) {
-      goalReachedIndicator.style.opacity = '0';
-    }
-  }
-
-  engine.run(() => {
-    if (showingTitleScreen) {
-      return;
-    }
-
-    inputManager.update();
-    cameraRig.update();
-    foggy.update();
-    terrarium.update();
-    sun.update();
-    chamber.update();
-    chamberOverlay.update();
-    controlButtons.update();
-    getDialogBox().update(world);
-
-    if (!levelInitialized && gameState.levelIdx !== -1) {
-      levelInitialized = true;
-      loadLevel(gameState.levelIdx);
-    }
-
-    if (terrarium.goalReached && !goalReachedShown && !showingTitleScreen) {
-      goalReachedShown = true;
-      if (goalReachedIndicator) {
-        goalReachedIndicator.style.opacity = '1';
+    function updateLevelIndicator() {
+      if (levelIndicator) {
+        levelIndicator.textContent = getCurrentLevel()?.name ?? '';
       }
     }
-  });
+
+    function loadLevel(index: number) {
+      if (gameState.levelIdx !== index) {
+        gameState.levelIdx = index;
+        gameStateManager.save();
+
+        LEVELS[gameState.levelIdx].onStart?.();
+      }
+      terrarium.startLevel(LEVELS[gameState.levelIdx]);
+      updateLevelIndicator();
+      goalReachedShown = false;
+      if (goalReachedIndicator) {
+        goalReachedIndicator.style.opacity = '0';
+      }
+    }
+
+    engine.run(() => {
+      if (showingTitleScreen) {
+        return;
+      }
+
+      inputManager.update();
+      cameraRig.update();
+      foggy.update();
+      terrarium.update();
+      sun.update();
+      chamber.update();
+      chamberOverlay.update();
+      controlButtons.update();
+      getDialogBox().update(world);
+
+      if (!levelInitialized && gameState.levelIdx !== -1) {
+        levelInitialized = true;
+        loadLevel(gameState.levelIdx);
+      }
+
+      if (terrarium.goalReached && !goalReachedShown) {
+        goalReachedShown = true;
+        getCurrentLevel()?.onFinish?.();
+
+        if (!showingTitleScreen && goalReachedIndicator) {
+          goalReachedIndicator.style.opacity = '1';
+        }
+      }
+    });
   } catch (error) {
     console.error('WebGPU initialization failed:', error);
     showWebGPUErrorModal();

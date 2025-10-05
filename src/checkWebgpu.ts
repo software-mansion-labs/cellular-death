@@ -5,7 +5,6 @@ export function isWebGPUSupported(): boolean {
   );
 }
 
-
 export function showWebGPUErrorModal(): void {
   const errorModal = document.getElementById('webgpuErrorModal');
   if (errorModal) {

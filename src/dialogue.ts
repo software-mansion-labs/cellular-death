@@ -19,12 +19,11 @@ export const introMonologue: DialogMessage[] = [
 ];
 
 export const level1dialogue: DialogMessage[] = [
-  { message: `Welcome.${mp}`, characterStagger: 0.1 },
+  { message: `Your cooperation is appreciated.${mp}`, characterStagger: 0.1 },
   {
     message: `${sp}Your task is simple.${mp}`,
     characterStagger: 0.05,
     onAppear: () => {
-      console.log('onAppear called');
       gameStateManager.state.introMonologueStep = 1;
       gameStateManager.save();
     },
@@ -32,5 +31,21 @@ export const level1dialogue: DialogMessage[] = [
   {
     message: `${sp}Rotate the hexahedron. ${sp}Guide the Entity to the target. ${sp}Make any sacrifices necessary.${lp}`,
     characterStagger: 0.05,
+  },
+];
+
+export const level1EndDialogue: DialogMessage[] = [
+  { message: `Thank you.${mp}`, characterStagger: 0.1 },
+  { message: `Proceed to the next task.${lp}`, characterStagger: 0.05 },
+];
+
+export const firstSlopesDialogue: DialogMessage[] = [
+  {
+    message: `The local fauna is conducive to the entity's growth.${mp}`,
+    characterStagger: 0.05,
+  },
+  {
+    message: `${sp}Use any opportunity to feed.${lp}`,
+    characterStagger: 0.1,
   },
 ];
