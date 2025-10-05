@@ -1,6 +1,6 @@
 import { perlin3d } from '@typegpu/noise';
 import { trait, type World } from 'koota';
-import tgpu, { type TgpuRoot } from 'typegpu';
+import tgpu, { type TgpuComputePipeline, type TgpuRoot } from 'typegpu';
 import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import * as wf from 'wayfare';
@@ -35,8 +35,10 @@ export function createTerrarium(
   world: World,
   sim: ReturnType<typeof createMoldSim>,
 ) {
+  let currentLevel: Level | null = null;
   const canFilter = root.enabledFeatures.has('float32-filterable');
 
+  const timeUniform = root.createUniform(d.f32);
   const renderLayout = tgpu.bindGroupLayout({
     state: {
       texture: d.texture3d(),
@@ -75,7 +77,12 @@ export function createTerrarium(
     std.textureStore(
       terrainWriteView.$,
       gid.xyz,
-      d.vec4f(std.saturate(levelSlot.$.init(samplePos)), 0, 0, 1),
+      d.vec4f(
+        std.saturate(levelSlot.$.init(samplePos, timeUniform.$)),
+        0,
+        0,
+        1,
+      ),
     );
   });
 
@@ -556,7 +563,7 @@ export function createTerrarium(
     },
   });
 
-  const timeUniform = root.createUniform(d.f32);
+  let terrainPipeline: TgpuComputePipeline | undefined;
   const cameraPosUniform = root.createUniform(d.vec3f);
   const creatureCount = root.createMutable(d.u32, 0);
 
@@ -617,6 +624,7 @@ export function createTerrarium(
       return sim.goalReached;
     },
     startLevel(level: Level) {
+      currentLevel = level;
       sim.reset();
 
       world
@@ -627,7 +635,7 @@ export function createTerrarium(
           quatn.identity(terrarium.targetRotation);
         });
 
-      const terrainPipeline = root['~unstable']
+      terrainPipeline = root['~unstable']
         .pipe(cache.inject())
         .with(levelSlot, level)
         .withCompute(initTerrain)
@@ -659,6 +667,14 @@ export function createTerrarium(
       const now = (performance.now() / 1000) % 1000;
       const time = wf.getOrThrow(world, wf.Time);
       timeUniform.write(now);
+
+      if (currentLevel?.animated && terrainPipeline) {
+        terrainPipeline.dispatchWorkgroups(
+          Math.ceil(sim.resolution.x / 4),
+          Math.ceil(sim.resolution.y / 4),
+          Math.ceil(sim.resolution.z / 4),
+        );
+      }
 
       // biome-ignore lint/style/noNonNullAssertion: there's a camera
       const camera = world.queryFirst(wf.ActiveCameraTag)!;

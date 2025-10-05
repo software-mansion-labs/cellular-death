@@ -4,9 +4,8 @@ import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import * as wf from 'wayfare';
 import { createBoxMesh } from './boxMesh.ts';
+import { getCurrentLevel } from './levels.ts';
 import type { createMoldSim } from './mold.ts';
-import { gameStateManager } from './saveGame.ts';
-import { getCurrentLevel, LEVELS } from './levels.ts';
 
 const VOLUME_SIZE = 128;
 const RAYMARCH_STEPS = 32;
@@ -119,7 +118,7 @@ export function createChamberOverlay(
         const gamma = d.f32(1.4);
         const sigmaT = d.f32(DENSITY_MULTIPLIER);
 
-        const terrainAlbedo = d.vec3f(0.25, 0.23, 0.2).mul(0.5);
+        // const terrainAlbedo = d.vec3f(0.25, 0.23, 0.2).mul(0.5);
 
         const lightDir = localLightDir;
         const ambientLight = d.f32(0.3);
