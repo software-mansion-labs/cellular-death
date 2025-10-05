@@ -301,9 +301,11 @@ async function initGame() {
         loadLevel(gameState.levelIdx);
       }
 
-      if (terrarium.goalReached && !goalReachedShown && !showingTitleScreen) {
+      if (terrarium.goalReached && !goalReachedShown) {
         goalReachedShown = true;
-        if (goalReachedIndicator) {
+        getCurrentLevel()?.onFinish?.();
+
+        if (!showingTitleScreen && goalReachedIndicator) {
           goalReachedIndicator.style.opacity = '1';
         }
       }

@@ -3,7 +3,7 @@ import { sdBox2d, sdBox3d, sdSphere } from '@typegpu/sdf';
 import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import { getDialogBox } from './dialogBox';
-import { firstSlopesDialogue, level1dialogue } from './dialogue';
+import { firstSlopesDialogue, level1dialogue, level1EndDialogue } from './dialogue';
 import { gameStateManager } from './saveGame';
 
 export function getCurrentLevel(): Level | undefined {
@@ -61,6 +61,9 @@ export const LEVELS: Level[] = [
     goalPosition: d.vec3f(0.8, 0.5, 0.5),
     onStart: () => {
       getDialogBox().enqueueMessage(...level1dialogue);
+    },
+    onFinish() {
+      getDialogBox().enqueueMessage(...level1EndDialogue);
     },
     init: (pos: d.v3f) => {
       'kernel';

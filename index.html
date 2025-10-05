@@ -17,9 +17,30 @@
         </div>
         <div
             id="titleScreen"
-            class="group z-10 absolute inset-0 bg-black flex flex-col items-center pt-[30vh] text-white font-sans opacity-100 transition-opacity duration-1000 data-[state=hidden]:opacity-0 data-[state=hidden]:pointer-events-none data-[variant=pause]:bg-black/60"
+            class="group z-10 absolute inset-0 bg-black flex flex-col justify-center items-center text-white font-sans opacity-100 transition-opacity duration-1000 data-[state=hidden]:opacity-0 data-[state=hidden]:pointer-events-none data-[variant=pause]:bg-black/60"
         >
-            <h1>Cellular Death</h1>
+            <div class="relative brightness-[71%] contrast-[1000%]">
+                <img
+                    src="assets/cellular-death-title.png"
+                    alt="Cellular Death Logo"
+                    class="w-[70vw]"
+                />
+                <div
+                    id="animated-ball"
+                    class="absolute z-10 left-[20%] bottom-[36%] bg-white w-16 h-16 blur-2xl animate-bounce"
+                ></div>
+                <script type="module">
+                    const ball = document.getElementById("animated-ball");
+
+                    function animate() {
+                        ball.style.left = `${Math.sin(Date.now() * 0.0007) * 30 + 50}%`;
+                        ball.style.top = `${Math.cos(Date.now() * 0.0005122) * 12 + 50}%`;
+                        requestAnimationFrame(animate);
+                    }
+                    requestAnimationFrame(animate);
+                </script>
+            </div>
+            <!--<h1>Cellular Death</h1>-->
             <div class="flex flex-col gap-4">
                 <button
                     id="startButton"

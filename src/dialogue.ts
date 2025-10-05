@@ -34,13 +34,18 @@ export const level1dialogue: DialogMessage[] = [
   },
 ];
 
+export const level1EndDialogue: DialogMessage[] = [
+  { message: `Thank you.${mp}`, characterStagger: 0.1 },
+  { message: `Proceed to the next task.${lp}`, characterStagger: 0.05 },
+];
+
 export const firstSlopesDialogue: DialogMessage[] = [
   {
     message: `The local fauna is conducive to the entity's growth.${mp}`,
     characterStagger: 0.05,
   },
   {
-    message: `${sp}Use any opportunity to feed.${mp}`,
+    message: `${sp}Use any opportunity to feed.${lp}`,
     characterStagger: 0.1,
   },
 ];
