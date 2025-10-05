@@ -8,7 +8,13 @@
     </head>
     <body>
         <canvas id="canvas"></canvas>
-        <div id="dialogBox" data-state="hidden" class="z-10"></div>
+        <div class="z-10 fixed inset-x-0 bottom-0 pointer-events-none">
+            <div
+                id="dialogBox"
+                data-state="hidden"
+                class="w-[90%] mx-auto max-w-[800px] mb-5 bg-black/60 text-white text-xl px-4 py-6 rounded-xl backdrop-blur text-center shadow opacity-0 transition-none data-[state=visible]:opacity-100 data-[state=visible]:transition-opacity duration-1000 ease-in-out"
+            ></div>
+        </div>
         <div
             id="titleScreen"
             class="group z-10 absolute inset-0 bg-black flex flex-col items-center pt-[30vh] text-white font-sans opacity-100 transition-opacity duration-1000 data-[state=hidden]:opacity-0 data-[state=hidden]:pointer-events-none data-[variant=pause]:bg-black/60"
@@ -44,18 +50,11 @@
                     Goal Reached!
                 </h2>
                 <p class="text-white/80 font-sans text-sm">
-                    Press Enter to continue
+                    Press the button in front of you to continue.
                 </p>
             </div>
         </div>
         <div id="menuButtons" class="z-20">
-            <button id="resetButton">
-                <img
-                    src="/assets/icons/refresh-svgrepo-com.svg"
-                    alt="Reset"
-                    draggable="false"
-                />
-            </button>
             <button id="muteButton">
                 <img
                     class="unmuted"

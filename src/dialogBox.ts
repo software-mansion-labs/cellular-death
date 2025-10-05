@@ -1,3 +1,6 @@
+import type { World } from 'koota';
+import * as wf from 'wayfare';
+
 let dialogBox: DialogBox | undefined;
 
 export function getDialogBox() {
@@ -26,9 +29,9 @@ class MessageTicker {
     this.#timeUntilNextChar = speed;
   }
 
-  update(): string | undefined {
-    this.#timeUntilNextChar -= 1;
-    if (this.#timeUntilNextChar === 0) {
+  update(deltaTime: number): string | undefined {
+    this.#timeUntilNextChar -= deltaTime;
+    if (this.#timeUntilNextChar <= 0) {
       this.#timeUntilNextChar = this.#characterStagger;
       this.#charCount += 1;
     }
@@ -51,13 +54,13 @@ class DialogBox {
     this.#messageQueue.push(...messages.map((m) => new MessageTicker(m)));
   }
 
-  #tickAndGetCurrentMessage(): string | undefined {
+  #tickAndGetCurrentMessage(deltaTime: number): string | undefined {
     const ticker = this.#messageQueue[0];
     if (!ticker) {
       return undefined;
     }
 
-    const result = ticker.update();
+    const result = ticker.update(deltaTime);
     if (result === undefined) {
       this.#messageQueue = this.#messageQueue.slice(1);
       return '';
@@ -65,7 +68,9 @@ class DialogBox {
     return result;
   }
 
-  update() {
+  update(world: World) {
+    const time = wf.getOrThrow(world, wf.Time);
+
     const dialogElement = document.getElementById('dialogBox');
     if (!dialogElement) {
       throw new Error('Dialog box not found!');
@@ -80,12 +85,12 @@ class DialogBox {
       return;
     }
 
-    const message = this.#tickAndGetCurrentMessage();
+    const message = this.#tickAndGetCurrentMessage(time.deltaSeconds);
     if (message === undefined) {
       dialogElement.dataset.state = 'hidden';
       return;
     }
     dialogElement.dataset.state = 'visible';
-    dialogElement.innerText = message.replaceAll('_', '') + '\u00A0';
+    dialogElement.innerText = `${message.replaceAll('_', '')}\u00A0`;
   }
 }

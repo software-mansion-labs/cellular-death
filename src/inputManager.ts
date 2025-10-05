@@ -21,15 +21,19 @@ export const InputData = trait(() => ({
    */
   mouseY: 0.5,
   dragging: false,
+
+  justLeftClicked: false,
 }));
 
 export function createInputManager(world: World, canvas: HTMLCanvasElement) {
   let lastMouseX = 0;
   let lastMouseY = 0;
+  let justLeftClicked = false;
   const input = wf.getOrAdd(world, InputData);
 
   canvas.addEventListener('mousedown', (e) => {
     input.dragging = true;
+    justLeftClicked = true;
     input.dragDeltaX = 0;
     input.dragDeltaY = 0;
     lastMouseX = e.clientX;
@@ -106,4 +110,15 @@ export function createInputManager(world: World, canvas: HTMLCanvasElement) {
     },
     { passive: false },
   );
+
+  return {
+    update() {
+      if (justLeftClicked) {
+        input.justLeftClicked = true;
+        justLeftClicked = false;
+      } else {
+        input.justLeftClicked = false;
+      }
+    },
+  };
 }

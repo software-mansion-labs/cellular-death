@@ -5,8 +5,10 @@ import tgpu from 'typegpu';
 import * as wf from 'wayfare';
 import { createCameraRig } from './cameraRig.ts';
 import { createChamber } from './chamber.ts';
+import { createControlButtons } from './controlButton.ts';
 import { getDialogBox } from './dialogBox.ts';
 import { level1dialogue } from './dialogue.ts';
+import { createFoggyMaterial } from './foggyMaterial.ts';
 import { createInputManager } from './inputManager.ts';
 import { LEVELS } from './levels.ts';
 import { createSun } from './sun.ts';
@@ -122,20 +124,6 @@ function initButtons() {
   muteButton?.addEventListener('click', () => {
     Tone.getDestination().mute = !Tone.getDestination().mute;
   });
-
-  // reset button
-  const resetButton = document.getElementById('resetButton');
-  let onReset: (() => void) | null = null;
-
-  resetButton?.addEventListener('click', () => {
-    onReset?.();
-  });
-
-  return {
-    setOnReset: (callback: () => void) => {
-      onReset = callback;
-    },
-  };
 }
 
 async function initGame() {
@@ -171,14 +159,33 @@ async function initGame() {
   const world = engine.world;
 
   // Attaches input controls to the canvas
-  createInputManager(world, canvas);
+  const inputManager = createInputManager(world, canvas);
 
   const sun = createSun(root, engine);
 
-  // Chamber
-  const chamber = createChamber(root, world, sun);
+  // Foggy
+  const foggy = createFoggyMaterial(root, world, sun);
 
-  // Terrarium
+  // Chamber
+  const chamber = createChamber(world, foggy.material);
+
+  // Control buttons
+  const controlButtons = createControlButtons(world, foggy.material, () => {
+    if (showingTitleScreen) {
+      return;
+    }
+
+    if (terrarium.goalReached) {
+      // Next level
+      const nextLevel = currentLevelIndex + 1;
+      loadLevel(nextLevel < LEVELS.length ? nextLevel : 0);
+    } else {
+      // Restart
+      loadLevel(currentLevelIndex);
+    }
+  });
+
+  // Terrarium (preferably last as far as rendered object go, since it's semi-transparent)
   const terrarium = createTerrarium(root, world);
 
   // Camera rig
@@ -207,25 +214,15 @@ async function initGame() {
     }
   }
 
-  buttons.setOnReset(() => loadLevel(currentLevelIndex));
-
-  document.addEventListener('keydown', (event) => {
-    if (
-      event.code === 'Enter' &&
-      terrarium.goalReached &&
-      !showingTitleScreen
-    ) {
-      const nextLevel = currentLevelIndex + 1;
-      loadLevel(nextLevel < LEVELS.length ? nextLevel : 0);
-    }
-  });
-
   engine.run(() => {
+    inputManager.update();
     cameraRig.update();
+    foggy.update();
     terrarium.update();
     sun.update();
     chamber.update();
-    getDialogBox().update();
+    controlButtons.update();
+    getDialogBox().update(world);
 
     if (!levelInitialized) {
       levelInitialized = true;

@@ -5,10 +5,10 @@ const mp = '_'.repeat(15);
 const lp = '_'.repeat(40);
 
 export const level1dialogue: DialogMessage[] = [
-  { message: `Welcome.${mp}`, characterStagger: 15 },
-  { message: `${sp}Your task is simple.${mp}`, characterStagger: 8 },
+  { message: `Welcome.${mp}`, characterStagger: 0.1 },
+  { message: `${sp}Your task is simple.${mp}`, characterStagger: 0.05 },
   {
     message: `${sp}Rotate the hexahedron. ${sp}Guide the Entity to the target. ${sp}Make any sacrifices necessary.${lp}`,
-    characterStagger: 8,
+    characterStagger: 0.05,
   },
 ];

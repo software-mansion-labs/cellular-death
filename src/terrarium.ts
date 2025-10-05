@@ -411,16 +411,37 @@ export function createTerrarium(root: TgpuRoot, world: World) {
             const diffuse = std.max(std.dot(normal, lightDir), 0.0);
             const lighting = ambientLight + diffuseStrength * diffuse;
 
-            const youngColor = d.vec3f(1, 0.5, 0.4);
-            const oldColor = d.vec3f(0.1, 0.2, 1.0);
-            const slimeAlbedo = std.mix(
-              youngColor,
-              oldColor,
-              lifetimeNormalized,
+            const clampedLifetime = std.min(lifetimeNormalized, 1.0);
+            const deathIntensity = std.saturate(
+              (lifetimeNormalized - 1.0) * 2.0,
             );
 
+            const t1 = std.smoothstep(0.0, 0.4, clampedLifetime);
+            const t2 = std.smoothstep(0.4, 0.85, clampedLifetime);
+            const t3 = std.smoothstep(0.85, 1.0, clampedLifetime);
+
+            const green = d.vec3f(0.2, 1.0, 0.4);
+            const yellow = d.vec3f(1.0, 0.85, 0.0);
+            const orange = d.vec3f(0.9, 0.4, 0.1);
+            const darkRed = d.vec3f(0.4, 0.0, 0.0);
+            const brightRed = d.vec3f(1.0, 0.1, 0.05);
+
+            const c1 = std.mix(green, yellow, t1);
+            const c2 = std.mix(c1, orange, t2);
+            const baseColor = std.mix(c2, darkRed, t3);
+
+            const deathPulse = std.sin(renderLayout.$.time * 4.0) * 0.15 + 0.85;
+            const slimeAlbedo = std.mix(
+              baseColor,
+              brightRed.mul(deathPulse),
+              deathIntensity,
+            );
+
+            const emission =
+              (1.0 - clampedLifetime) * 0.35 + deathIntensity * 0.6;
+
             const alphaSrc = 1 - std.exp(-sigmaT * density * stepSize);
-            const litColor = slimeAlbedo.mul(lighting);
+            const litColor = slimeAlbedo.mul(lighting + emission);
             const contrib = litColor.mul(alphaSrc);
 
             accum = accum.add(contrib.mul(transmittance));
@@ -616,11 +637,15 @@ export function createTerrarium(root: TgpuRoot, world: World) {
     get goalReached() {
       return sim.goalReached;
     },
-    reset() {
-      sim.reset();
-    },
     startLevel(level: Level) {
       sim.reset();
+
+      world.query(Terrarium, wf.TransformTrait).updateEach(([terrarium, transform]) => {
+        terrarium.rotationProgress = 0;
+        terrarium.prevRotation = d.vec4f(transform.rotation);
+        quatn.identity(terrarium.targetRotation);
+      });
+
       const terrainPipeline = root['~unstable']
         .pipe(cache.inject())
         .with(levelSlot, level)
@@ -670,7 +695,12 @@ export function createTerrarium(root: TgpuRoot, world: World) {
           const targetRotation = terrarium.targetRotation;
           const ang = terrarium.angularMomentum;
 
-          if (!inputData.dragging && (ang.x !== 0 || ang.y !== 0)) {
+          const dragging =
+            inputData.dragging &&
+            Math.abs(inputData.mouseX - 0.5) < 0.2 &&
+            Math.abs(inputData.mouseY - 0.5) < 0.2;
+
+          if (!dragging && (ang.x !== 0 || ang.y !== 0)) {
             prevRotation.x = transform.rotation.x;
             prevRotation.y = transform.rotation.y;
             prevRotation.z = transform.rotation.z;
@@ -714,7 +744,7 @@ export function createTerrarium(root: TgpuRoot, world: World) {
           );
           quatn.normalize(transform.rotation, transform.rotation);
 
-          if (inputData.dragging) {
+          if (dragging) {
             ang.x += inputData.dragDeltaY * 2;
             ang.y += inputData.dragDeltaX * 2;
             quatn.mul(
