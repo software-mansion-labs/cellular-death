@@ -7,6 +7,7 @@ import { createCameraRig } from './cameraRig.ts';
 import { createChamber } from './chamber.ts';
 import { getDialogBox } from './dialogBox.ts';
 import { level1dialogue } from './dialogue.ts';
+import { createFoggyMaterial } from './foggyMaterial.ts';
 import { createInputManager } from './inputManager.ts';
 import { LEVELS } from './levels.ts';
 import { createSun } from './sun.ts';
@@ -176,8 +177,11 @@ async function initGame() {
 
   const sun = createSun(root, engine);
 
+  // Foggy
+  const foggy = createFoggyMaterial(root, world, sun);
+
   // Chamber
-  const chamber = createChamber(root, world, sun);
+  const chamber = createChamber(world, foggy.material);
 
   // Terrarium
   const terrarium = createTerrarium(root, world);
@@ -223,6 +227,7 @@ async function initGame() {
 
   engine.run(() => {
     cameraRig.update();
+    foggy.update();
     terrarium.update();
     sun.update();
     chamber.update();
