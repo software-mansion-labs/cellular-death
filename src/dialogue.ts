@@ -1,17 +1,18 @@
 import type { DialogMessage } from './dialogBox';
 import { gameStateManager } from './saveGame';
+import { VO } from './sfx';
 
 const sp = '_'.repeat(5);
 const mp = '_'.repeat(15);
 const lp = '_'.repeat(40);
 
 export const introMonologue: DialogMessage[] = [
-  { message: `Welcome.${mp}`, characterStagger: 0.1 },
+  { message: `Welcome.${mp}`, characterStagger: 0.1, onAppear: () => VO['welcome'].start() },
   {
     message: `${sp}Press the button in front of you to begin.${mp}`,
     characterStagger: 0.05,
     onAppear: () => {
-      console.log('onAppear called');
+      VO['press_the_button'].start();
       gameStateManager.state.introMonologueStep = 1;
       gameStateManager.save();
     },
@@ -19,7 +20,7 @@ export const introMonologue: DialogMessage[] = [
 ];
 
 export const level1dialogue: DialogMessage[] = [
-  { message: `Your cooperation is appreciated.${mp}`, characterStagger: 0.1 },
+  { message: `Your cooperation is appreciated.${mp}`, characterStagger: 0.1, onAppear: () => VO['your_cooperation_is'].start() },
   {
     message: `${sp}Your task is simple.${mp}`,
     characterStagger: 0.05,

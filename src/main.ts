@@ -1,6 +1,6 @@
 import './style.css';
 
-import * as Tone from "tone";
+import * as Tone from 'tone';
 import tgpu from 'typegpu';
 import * as d from 'typegpu/data';
 import * as wf from 'wayfare';
@@ -16,9 +16,15 @@ import { createInputManager } from './inputManager.ts';
 import { getCurrentLevel, LEVELS } from './levels.ts';
 import { createMoldSim } from './mold.ts';
 import { gameStateManager } from './saveGame.ts';
+import {
+  backgroudMusic,
+  beginSfx,
+  cellEatenSfx,
+  resetSfx,
+  winSfx,
+} from './sfx.ts';
 import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
-import { beginSfx, backgroudMusic, resetSfx, winSfx, cellEatenSfx } from './sfx.ts';
 
 const VOLUME_SIZE = 128;
 
@@ -218,7 +224,7 @@ async function initGame() {
         // Restart
         loadLevel(gameState.levelIdx);
       }
-    resetSfx.start();
+      resetSfx.start();
     });
 
     const sim = createMoldSim(
@@ -305,13 +311,13 @@ async function initGame() {
         }
       }
 
-      terrarium.creaturesReadonly.read().then(creatures => {
-        const newCount = creatures.filter(c => c.eaten === 0).length;
+      terrarium.creaturesReadonly.read().then((creatures) => {
+        const newCount = creatures.filter((c) => c.eaten === 0).length;
         if (newCount < creatureCount) {
           cellEatenSfx.start();
         }
         creatureCount = newCount;
-      })
+      });
     });
   } catch (error) {
     console.error('WebGPU initialization failed:', error);
