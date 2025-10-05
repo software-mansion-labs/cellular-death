@@ -208,9 +208,11 @@ async function initGame() {
   }
 
   function loadLevel(index: number) {
-    gameState.levelIdx = index;
-    gameStateManager.save();
-    terrarium.startLevel(LEVELS[index]);
+    if (gameState.levelIdx !== index) {
+      gameState.levelIdx = index;
+      gameStateManager.save();
+    }
+    terrarium.startLevel(LEVELS[gameState.levelIdx]);
     updateLevelIndicator();
     goalReachedShown = false;
     if (goalReachedIndicator) {
