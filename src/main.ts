@@ -257,13 +257,6 @@ async function initGame() {
     const goalReachedIndicator = document.getElementById(
       'goalReachedIndicator',
     );
-    const levelIndicator = document.getElementById('levelIndicator');
-
-    function updateLevelIndicator() {
-      if (levelIndicator) {
-        levelIndicator.textContent = getCurrentLevel()?.name ?? '';
-      }
-    }
 
     function loadLevel(index: number) {
       if (gameState.levelIdx !== index) {
@@ -273,7 +266,6 @@ async function initGame() {
         LEVELS[gameState.levelIdx].onStart?.();
       }
       terrarium.startLevel(LEVELS[gameState.levelIdx]);
-      updateLevelIndicator();
       goalReachedShown = false;
       if (goalReachedIndicator) {
         goalReachedIndicator.style.opacity = '0';
