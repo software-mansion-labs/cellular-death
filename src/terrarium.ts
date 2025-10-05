@@ -7,7 +7,7 @@ import * as wf from 'wayfare';
 import { quatn, vec3n } from 'wgpu-matrix';
 import { createBoxMesh } from './boxMesh.ts';
 import { InputData } from './inputManager.ts';
-import type { Level } from './levels.ts';
+import { getCurrentLevel, type Level } from './levels.ts';
 import type { createMoldSim } from './mold.ts';
 import { createSphereMesh } from './sphereMesh.ts';
 
@@ -25,6 +25,12 @@ const Terrarium = trait({
   rotationProgress: 0,
 });
 
+const MoldParams = d.struct({
+  time: d.f32,
+  cameraPos: d.vec3f,
+  opacityMultiplier: d.f32,
+});
+
 const blendState = {
   color: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
   alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
@@ -38,7 +44,7 @@ export function createTerrarium(
   let currentLevel: Level | null = null;
   const canFilter = root.enabledFeatures.has('float32-filterable');
 
-  const timeUniform = root.createUniform(d.f32);
+  const paramsUniform = root.createUniform(MoldParams);
   const renderLayout = tgpu.bindGroupLayout({
     state: {
       texture: d.texture3d(),
@@ -48,8 +54,7 @@ export function createTerrarium(
       texture: d.texture3d(),
       sampleType: canFilter ? 'float' : 'unfilterable-float',
     },
-    time: { uniform: d.f32 },
-    cameraPos: { uniform: d.vec3f },
+    params: { uniform: MoldParams },
   });
 
   const sampler = tgpu['~unstable'].sampler({
@@ -78,7 +83,7 @@ export function createTerrarium(
       terrainWriteView.$,
       gid.xyz,
       d.vec4f(
-        std.saturate(levelSlot.$.init(samplePos, timeUniform.$)),
+        std.saturate(levelSlot.$.init(samplePos, paramsUniform.$.time)),
         0,
         0,
         1,
@@ -115,8 +120,9 @@ export function createTerrarium(
         return {
           pos,
           localPos: input.pos,
-          cameraPos: $$.invModelMat.mul(d.vec4f(renderLayout.$.cameraPos, 1))
-            .xyz,
+          cameraPos: $$.invModelMat.mul(
+            d.vec4f(renderLayout.$.params.cameraPos, 1),
+          ).xyz,
           localLightDir,
         };
       });
@@ -428,7 +434,8 @@ export function createTerrarium(
             const c2 = std.mix(c1, orange, t2);
             const baseColor = std.mix(c2, darkRed, t3);
 
-            const deathPulse = std.sin(renderLayout.$.time * 4.0) * 0.15 + 0.85;
+            const deathPulse =
+              std.sin(renderLayout.$.params.time * 4.0) * 0.15 + 0.85;
             const slimeAlbedo = std.mix(
               baseColor,
               brightRed.mul(deathPulse),
@@ -448,7 +455,9 @@ export function createTerrarium(
         }
 
         const alpha = 1 - transmittance;
-        return d.vec4f(accum, alpha);
+        return d
+          .vec4f(accum, alpha)
+          .mul(renderLayout.$.params.opacityMultiplier);
       });
 
       return {
@@ -490,7 +499,7 @@ export function createTerrarium(
         in: Varying,
         out: d.vec4f,
       })(() => {
-        const time = renderLayout.$.time;
+        const time = renderLayout.$.params.time;
         const alpha = (1 - std.fract(time)) * 0.5;
         return d.vec4f(HALO_COLOR, 1).mul(alpha);
       });
@@ -537,7 +546,7 @@ export function createTerrarium(
         in: Varying,
         out: d.vec4f,
       })((input) => {
-        const time = renderLayout.$.time;
+        const time = renderLayout.$.params.time;
 
         const alpha =
           0.7 + std.abs(std.sin(input.localPos.y * 2 + time * 2)) * 0.2;
@@ -564,36 +573,34 @@ export function createTerrarium(
   });
 
   let terrainPipeline: TgpuComputePipeline | undefined;
-  const cameraPosUniform = root.createUniform(d.vec3f);
   const creatureCount = root.createMutable(d.u32, 0);
 
   const renderBindGroups = [0, 1].map((i) =>
     root.createBindGroup(renderLayout, {
       state: sim.textures[i],
       terrain: terrainSampled,
-      cameraPos: cameraPosUniform.buffer,
-      time: timeUniform.buffer,
+      params: paramsUniform.buffer,
     }),
   );
 
   // Terrarium
   const terrarium = world.spawn(
     Terrarium(),
-    wf.TransformTrait({ position: d.vec3f(0) }),
+    wf.TransformTrait({ position: d.vec3f(0), scale: d.vec3f(0) }),
   );
 
   const bg = world.spawn(
     wf.MeshTrait(boxMesh),
     ...BgMaterial.Bundle(),
     wf.TransformTrait({ position: d.vec3f(0), scale: d.vec3f(1.1) }),
-    wf.ExtraBindingTrait({ group: undefined }),
+    wf.ExtraBindingTrait({ group: renderBindGroups[0] }),
   );
 
   const halo = world.spawn(
     wf.MeshTrait(boxMesh),
     ...HaloMaterial.Bundle(),
     wf.TransformTrait({ position: d.vec3f(0), scale: d.vec3f(1.3) }),
-    wf.ExtraBindingTrait({ group: undefined }),
+    wf.ExtraBindingTrait({ group: renderBindGroups[0] }),
   );
 
   // Ray-marched volume
@@ -601,7 +608,7 @@ export function createTerrarium(
     wf.MeshTrait(boxMesh),
     ...MoldMaterial.Bundle(),
     wf.TransformTrait({ position: d.vec3f(0) }),
-    wf.ExtraBindingTrait({ group: undefined }),
+    wf.ExtraBindingTrait({ group: renderBindGroups[0] }),
   );
 
   wf.connectAsChild(terrarium, halo);
@@ -666,7 +673,6 @@ export function createTerrarium(
     update() {
       const now = (performance.now() / 1000) % 1000;
       const time = wf.getOrThrow(world, wf.Time);
-      timeUniform.write(now);
 
       if (currentLevel?.animated && terrainPipeline) {
         terrainPipeline.dispatchWorkgroups(
@@ -679,7 +685,6 @@ export function createTerrarium(
       // biome-ignore lint/style/noNonNullAssertion: there's a camera
       const camera = world.queryFirst(wf.ActiveCameraTag)!;
       const cameraPos = wf.getOrThrow(camera, wf.TransformTrait).position;
-      cameraPosUniform.write(cameraPos);
 
       const inputData = wf.getOrThrow(world, InputData);
 
@@ -758,6 +763,52 @@ export function createTerrarium(
             invRotation,
             d.vec3f(),
           );
+
+          // Enter/Exit animation
+          const shouldShow = !!getCurrentLevel();
+          if (shouldShow) {
+            transform.scale.x = wf.encroach(
+              transform.scale.x,
+              1,
+              0.01,
+              time.deltaSeconds,
+            );
+            transform.scale.y =
+              transform.scale.x < 0.8
+                ? 0.02
+                : wf.encroach(transform.scale.y, 1, 0.01, time.deltaSeconds);
+            transform.scale.z = wf.encroach(
+              transform.scale.z,
+              transform.scale.y < 0.8 ? 0.1 : 1,
+              0.01,
+              time.deltaSeconds,
+            );
+          } else {
+            transform.scale.x = wf.encroach(
+              transform.scale.x,
+              0,
+              0.1,
+              time.deltaSeconds,
+            );
+            transform.scale.y = wf.encroach(
+              transform.scale.y,
+              0,
+              0.1,
+              time.deltaSeconds,
+            );
+            transform.scale.z = wf.encroach(
+              transform.scale.z,
+              0,
+              0.1,
+              time.deltaSeconds,
+            );
+          }
+
+          paramsUniform.write({
+            time: now,
+            cameraPos,
+            opacityMultiplier: (transform.scale.z - 0.1) / 0.9,
+          });
         });
 
       sim.tick(world, localGravityDir);

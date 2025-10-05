@@ -4,7 +4,7 @@ import tgpu, { type TgpuRoot } from 'typegpu';
 import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import * as wf from 'wayfare';
-import type { Sun } from './sun';
+import type { Sun } from './sun.ts';
 
 const fogStart = 1;
 const fogEnd = 25;

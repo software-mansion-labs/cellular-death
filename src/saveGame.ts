@@ -2,10 +2,17 @@ import { type } from 'arktype';
 
 export const GameState = type({
   levelIdx: 'number',
+  /**
+   * The current step of the intro monologue.
+   * Used to control things like showing the control button in front
+   * of the player.
+   */
+  introMonologueStep: 'number',
 });
 
 const defaultGameState = GameState.from({
-  levelIdx: 0,
+  levelIdx: -1,
+  introMonologueStep: 0,
 });
 
 const parseJson = type('string').pipe.try(

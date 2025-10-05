@@ -188,7 +188,7 @@ async function initGame() {
       return;
     }
 
-    if (terrarium.goalReached) {
+    if (terrarium.goalReached || gameState.levelIdx === -1) {
       // Next level
       const nextLevel = gameState.levelIdx + 1;
       loadLevel(nextLevel < LEVELS.length ? nextLevel : 0);
@@ -248,6 +248,10 @@ async function initGame() {
   }
 
   engine.run(() => {
+    if (showingTitleScreen) {
+      return;
+    }
+
     inputManager.update();
     cameraRig.update();
     foggy.update();
@@ -258,7 +262,7 @@ async function initGame() {
     controlButtons.update();
     getDialogBox().update(world);
 
-    if (!levelInitialized) {
+    if (!levelInitialized && gameState.levelIdx !== -1) {
       levelInitialized = true;
       loadLevel(gameState.levelIdx);
     }

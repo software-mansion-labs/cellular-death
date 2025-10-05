@@ -2,7 +2,7 @@ import { trait, type World } from 'koota';
 import * as d from 'typegpu/data';
 import * as wf from 'wayfare';
 import { quatn } from 'wgpu-matrix';
-import type { FoggyMaterial } from './foggyMaterial';
+import type { FoggyMaterial } from './foggyMaterial.ts';
 
 const [chamberMesh, fanMesh] = await Promise.all([
   wf.meshAsset({ url: '/assets/models/chamber.obj' }).preload(),

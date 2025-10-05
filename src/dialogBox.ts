@@ -16,6 +16,7 @@ export interface DialogMessage {
    * How many seconds does displaying each character take
    */
   characterStagger: number;
+  onAppear?: () => void;
 }
 
 class MessageTicker {
