@@ -788,7 +788,7 @@ export function createMoldSim(
             .dispatchWorkgroups(1, 1, 1);
 
           goal.read().then((data) => {
-            if (!goalReached && data.reached > 0) {
+            if (data.reached > 0) {
               goalReached = true;
             }
           });

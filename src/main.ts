@@ -305,7 +305,7 @@ async function initGame() {
         }
       }
 
-      terrarium.creaturesMutable.read().then(creatures => {
+      terrarium.creaturesReadonly.read().then(creatures => {
         const newCount = creatures.filter(c => c.eaten === 0).length;
         if (newCount < creatureCount) {
           cellEatenSfx.start();
