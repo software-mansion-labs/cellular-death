@@ -640,11 +640,13 @@ export function createTerrarium(root: TgpuRoot, world: World) {
     startLevel(level: Level) {
       sim.reset();
 
-      world.query(Terrarium, wf.TransformTrait).updateEach(([terrarium, transform]) => {
-        terrarium.rotationProgress = 0;
-        terrarium.prevRotation = d.vec4f(transform.rotation);
-        quatn.identity(terrarium.targetRotation);
-      });
+      world
+        .query(Terrarium, wf.TransformTrait)
+        .updateEach(([terrarium, transform]) => {
+          terrarium.rotationProgress = 0;
+          terrarium.prevRotation = d.vec4f(transform.rotation);
+          quatn.identity(terrarium.targetRotation);
+        });
 
       const terrainPipeline = root['~unstable']
         .pipe(cache.inject())
