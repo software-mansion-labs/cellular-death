@@ -2,21 +2,26 @@ import './style.css';
 
 import * as Tone from 'tone';
 import tgpu from 'typegpu';
+import * as d from 'typegpu/data';
 import * as wf from 'wayfare';
 import { createCameraRig } from './cameraRig.ts';
 import { createChamber } from './chamber.ts';
+import { createChamberOverlay } from './chamberOverlay.ts';
 import { createControlButtons } from './controlButton.ts';
 import { getDialogBox } from './dialogBox.ts';
 import { level1dialogue } from './dialogue.ts';
 import { createFoggyMaterial } from './foggyMaterial.ts';
 import { createInputManager } from './inputManager.ts';
 import { LEVELS } from './levels.ts';
+import { createMoldSim } from './mold.ts';
 import { gameStateManager } from './saveGame.ts';
 import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
 
+const VOLUME_SIZE = 128;
+
 const quality: 'low' | 'high' | 'ultra' = 'ultra';
-let showingTitleScreen = true;
+let showingTitleScreen = false;
 let pauseMenuVariant = false;
 
 function initAgingIndicator() {
@@ -52,6 +57,7 @@ function initButtons() {
   // biome-ignore lint/style/noNonNullAssertion: it's fine
   const startButton = document.getElementById('startButton')!;
   if (!startButton) throw new Error('startButton not found');
+  // biome-ignore lint/style/noNonNullAssertion: it's fine
   const clearSaveDataButton = document.getElementById('clearSaveDataButton')!;
   if (!clearSaveDataButton) throw new Error('clearSaveDataButton not found');
 
@@ -160,7 +166,7 @@ async function initGame() {
   resizeCanvas(canvas);
   window.addEventListener('resize', () => resizeCanvas(canvas));
 
-  const buttons = initButtons();
+  initButtons();
   initAgingIndicator();
 
   const world = engine.world;
@@ -192,8 +198,23 @@ async function initGame() {
     }
   });
 
+  const sim = createMoldSim(
+    root,
+    VOLUME_SIZE,
+    {
+      spawnPoint: d.vec3f(9999),
+      spawnRate: 5_000,
+      targetCount: 100_000,
+    },
+    d.vec3f(-9999),
+    [],
+  );
+
+  // Chamber overlay
+  const chamberOverlay = createChamberOverlay(root, world, sim);
+
   // Terrarium (preferably last as far as rendered object go, since it's semi-transparent)
-  const terrarium = createTerrarium(root, world);
+  const terrarium = createTerrarium(root, world, sim);
 
   // Camera rig
   const cameraRig = createCameraRig(world);
@@ -233,6 +254,7 @@ async function initGame() {
     terrarium.update();
     sun.update();
     chamber.update();
+    chamberOverlay.update();
     controlButtons.update();
     getDialogBox().update(world);
 

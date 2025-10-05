@@ -8,10 +8,9 @@ import { quatn, vec3n } from 'wgpu-matrix';
 import { createBoxMesh } from './boxMesh.ts';
 import { InputData } from './inputManager.ts';
 import type { Level } from './levels.ts';
-import { createMoldSim } from './mold.ts';
+import type { createMoldSim } from './mold.ts';
 import { createSphereMesh } from './sphereMesh.ts';
 
-const VOLUME_SIZE = 128;
 const RAYMARCH_STEPS = 256;
 const DENSITY_MULTIPLIER = 20;
 const HALO_COLOR = d.vec3f(1, 1, 1);
@@ -31,7 +30,11 @@ const blendState = {
   alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
 } as const;
 
-export function createTerrarium(root: TgpuRoot, world: World) {
+export function createTerrarium(
+  root: TgpuRoot,
+  world: World,
+  sim: ReturnType<typeof createMoldSim>,
+) {
   let currentLevel: Level | null = null;
   const canFilter = root.enabledFeatures.has('float32-filterable');
 
@@ -54,24 +57,12 @@ export function createTerrarium(root: TgpuRoot, world: World) {
     minFilter: canFilter ? 'linear' : 'nearest',
   });
 
-  const resolution = d.vec3f(VOLUME_SIZE);
-  const cache = perlin3d.staticCache({ root, size: d.vec3u(resolution) });
+  const cache = perlin3d.staticCache({ root, size: d.vec3u(sim.resolution) });
 
-  const terrain = root['~unstable']
-    .createTexture({
-      size: [resolution.x, resolution.y, resolution.z],
-      format: 'r32float',
-      dimension: '3d',
-    })
-    .$usage('sampled', 'storage');
-
-  const terrainWriteView = terrain.createView(
+  const terrainWriteView = sim.terrainTexture.createView(
     d.textureStorage3d('r32float', 'write-only'),
   );
-  const terrainReadView = terrain.createView(
-    d.textureStorage3d('r32float', 'read-only'),
-  );
-  const terrainSampled = terrain.createView();
+  const terrainSampled = sim.terrainTexture.createView();
 
   const levelSlot = tgpu.slot<Level>();
   const initTerrain = tgpu['~unstable'].computeFn({
@@ -190,7 +181,7 @@ export function createTerrarium(root: TgpuRoot, world: World) {
             continue;
           }
 
-          const volumePos = texCoord.mul(VOLUME_SIZE);
+          const volumePos = texCoord.mul(sim.resolution);
           for (let c = d.u32(0); c < creatureCount.$; c = c + 1) {
             const isEaten = sim.creaturesReadonly.$[c].eaten;
             if (isEaten === 0) {
@@ -198,7 +189,7 @@ export function createTerrarium(root: TgpuRoot, world: World) {
                 volumePos.sub(sim.creaturesReadonly.$[c].position),
               );
 
-              if (distToCreature < creatureRadius * VOLUME_SIZE) {
+              if (distToCreature < creatureRadius * sim.resolution.x) {
                 const creatureNormal = std.normalize(
                   volumePos.sub(sim.creaturesReadonly.$[c].position),
                 );
@@ -277,7 +268,7 @@ export function createTerrarium(root: TgpuRoot, world: World) {
 
             let gradientNormal = d.vec3f(0, 1, 0);
             {
-              const gradientOffset = d.f32(1.0 / VOLUME_SIZE);
+              const gradientOffset = d.f32(1.0 / sim.resolution.x);
               const texCoordMin = d.vec3f(0.0);
               const texCoordMax = d.vec3f(1.0);
 
@@ -364,7 +355,7 @@ export function createTerrarium(root: TgpuRoot, world: World) {
           const density = std.pow(d0, gamma);
 
           if (density > 0.01) {
-            const gradientOffset = d.f32(5.0 / VOLUME_SIZE);
+            const gradientOffset = d.f32(5.0 / sim.resolution.x);
             const texCoordMin = d.vec3f(0.0);
             const texCoordMax = d.vec3f(1.0);
 
@@ -573,18 +564,6 @@ export function createTerrarium(root: TgpuRoot, world: World) {
   });
 
   let terrainPipeline: TgpuComputePipeline | undefined;
-  const sim = createMoldSim(
-    root,
-    VOLUME_SIZE,
-    terrainReadView,
-    {
-      spawnPoint: d.vec3f(9999),
-      spawnRate: 5_000,
-      targetCount: 100_000,
-    },
-    d.vec3f(-9999),
-    [],
-  );
   const cameraPosUniform = root.createUniform(d.vec3f);
   const creatureCount = root.createMutable(d.u32, 0);
 
@@ -663,14 +642,14 @@ export function createTerrarium(root: TgpuRoot, world: World) {
         .createPipeline();
 
       terrainPipeline.dispatchWorkgroups(
-        Math.ceil(resolution.x / 4),
-        Math.ceil(resolution.y / 4),
-        Math.ceil(resolution.z / 4),
+        Math.ceil(sim.resolution.x / 4),
+        Math.ceil(sim.resolution.y / 4),
+        Math.ceil(sim.resolution.z / 4),
       );
 
       // Convert normalized level positions (0-1) to volume coordinates
-      const spawnerPos = level.spawnerPosition.mul(VOLUME_SIZE);
-      const goalPos = level.goalPosition.mul(VOLUME_SIZE);
+      const spawnerPos = level.spawnerPosition.mul(sim.resolution);
+      const goalPos = level.goalPosition.mul(sim.resolution);
 
       sim.setSpawnerPosition(spawnerPos);
       sim.setGoalPosition(goalPos);
@@ -689,11 +668,11 @@ export function createTerrarium(root: TgpuRoot, world: World) {
       const time = wf.getOrThrow(world, wf.Time);
       timeUniform.write(now);
 
-      if (currentLevel && currentLevel.animated && terrainPipeline) {
+      if (currentLevel?.animated && terrainPipeline) {
         terrainPipeline.dispatchWorkgroups(
-          Math.ceil(resolution.x / 4),
-          Math.ceil(resolution.y / 4),
-          Math.ceil(resolution.z / 4),
+          Math.ceil(sim.resolution.x / 4),
+          Math.ceil(sim.resolution.y / 4),
+          Math.ceil(sim.resolution.z / 4),
         );
       }
 

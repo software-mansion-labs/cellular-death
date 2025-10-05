@@ -1,6 +1,6 @@
 import { randf } from '@typegpu/noise';
 import type { World } from 'koota';
-import tgpu, { type TgpuRoot, type TgpuTextureView } from 'typegpu';
+import tgpu, { type TgpuRoot } from 'typegpu';
 import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import * as wf from 'wayfare';
@@ -74,9 +74,6 @@ const GoalConfig = d.struct({
 export function createMoldSim(
   root: TgpuRoot,
   volumeSize: number,
-  terrainTexture: TgpuTextureView<
-    d.WgslStorageTexture3d<'r32float', 'read-only'>
-  >,
   spawnerConfig?: {
     spawnPoint?: d.v3f;
     spawnRate?: number;
@@ -86,6 +83,18 @@ export function createMoldSim(
   creaturePositions: d.v3f[] = [],
 ) {
   const resolution = d.vec3f(volumeSize);
+
+  const terrainTexture = root['~unstable']
+    .createTexture({
+      size: [resolution.x, resolution.y, resolution.z],
+      format: 'r32float',
+      dimension: '3d',
+    })
+    .$usage('sampled', 'storage');
+
+  const terrainReadView = terrainTexture.createView(
+    d.textureStorage3d('r32float', 'read-only'),
+  );
 
   const agentsData = root.createMutable(d.arrayOf(Agent, NUM_AGENTS));
 
@@ -653,7 +662,7 @@ export function createMoldSim(
     root.createBindGroup(computeLayout, {
       oldState: textures[i],
       newState: textures[1 - i],
-      terrain: terrainTexture,
+      terrain: terrainReadView,
     }),
   );
 
@@ -696,6 +705,8 @@ export function createMoldSim(
   };
 
   return {
+    terrainTexture,
+    resolution,
     textures,
     creaturesAtomic,
     creaturesReadonly,
