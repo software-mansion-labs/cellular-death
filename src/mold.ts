@@ -4,6 +4,7 @@ import tgpu, { type TgpuRoot } from 'typegpu';
 import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import * as wf from 'wayfare';
+import { winSfx } from './sfx';
 
 const NUM_AGENTS = 800_000;
 const AGENT_WORKGROUP_SIZE = 64;
@@ -788,7 +789,8 @@ export function createMoldSim(
             .dispatchWorkgroups(1, 1, 1);
 
           goal.read().then((data) => {
-            if (data.reached > 0) {
+            if (!goalReached && data.reached > 0) {
+              winSfx.start();
               goalReached = true;
             }
           });

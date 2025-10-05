@@ -1,6 +1,6 @@
 import './style.css';
 
-import * as Tone from 'tone';
+import * as Tone from "tone";
 import tgpu from 'typegpu';
 import * as d from 'typegpu/data';
 import * as wf from 'wayfare';
@@ -18,6 +18,7 @@ import { gameStateManager } from './saveGame.ts';
 import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
 import { isWebGPUSupported, showWebGPUErrorModal } from './checkWebgpu.ts';
+import { beginSfx, backgroudMusic, resetSfx } from './sfx.ts';
 
 const VOLUME_SIZE = 128;
 
@@ -43,15 +44,6 @@ function initAgingIndicator() {
 }
 
 function initButtons() {
-  // sound and music
-  const clickSfx = new Tone.Player(
-    'assets/sfx/ambient-snare.mp3',
-  ).toDestination();
-  const backgroudMusic = new Tone.Player(
-    'assets/sfx/background-music.mp3',
-  ).toDestination();
-  backgroudMusic.loop = true;
-
   // biome-ignore lint/style/noNonNullAssertion: it's fine
   const titleScreen = document.getElementById('titleScreen')!;
   if (!titleScreen) throw new Error('titleScreen not found');
@@ -80,7 +72,7 @@ function initButtons() {
   async function startGame() {
     await Tone.loaded();
 
-    clickSfx.start();
+    beginSfx.start();
     backgroudMusic.start();
 
     const level = getCurrentLevel();
@@ -217,6 +209,7 @@ async function initGame() {
       // Restart
       loadLevel(gameState.levelIdx);
     }
+    resetSfx.start();
   });
 
   const sim = createMoldSim(
