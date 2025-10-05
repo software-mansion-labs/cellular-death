@@ -1,17 +1,11 @@
 import { type } from 'arktype';
 
 export const GameState = type({
-  testString: 'string',
-  testNumber: 'number',
-  testBoolean: 'boolean',
-  testArray: 'number[]',
+  levelIdx: 'number',
 });
 
 const defaultGameState = GameState({
-  testString: 'default',
-  testNumber: 0,
-  testBoolean: false,
-  testArray: [],
+  levelIdx: 0,
 });
 
 const parseJson = type('string').pipe.try(

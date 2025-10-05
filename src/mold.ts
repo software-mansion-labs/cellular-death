@@ -356,7 +356,7 @@ export function createMoldSim(
         terrainNormal.mul(2.0 * std.dot(direction, terrainNormal)),
       );
 
-      const randomOffset = randf.inUnitSphere().mul(0.2);
+      const randomOffset = randf.inUnitSphere().mul(0.8);
       direction = std.normalize(reflectedDir.add(randomOffset));
     }
 
@@ -388,7 +388,7 @@ export function createMoldSim(
     ).x;
     if (finalTerrainCheck > 0.07) {
       const terrainNormal = getTerrainNormal(newPos, dimsf);
-      newPos = agent.position.add(terrainNormal.mul(1.0));
+      newPos = agent.position.sub(terrainNormal.mul(1));
     }
 
     const center = dimsf.div(2);
