@@ -7,6 +7,7 @@ import * as wf from 'wayfare';
 import { quatn, vec3n } from 'wgpu-matrix';
 import { createBoxMesh } from './boxMesh.ts';
 import { InputData } from './inputManager.ts';
+import { sphereFragment, sphereVertex } from './water/render/sphere.ts';
 import type { Level } from './levels.ts';
 import { createMoldSim } from './mold.ts';
 import { createSphereMesh } from './sphereMesh.ts';
@@ -459,6 +460,32 @@ export function createTerrarium(root: TgpuRoot, world: World) {
     },
   });
 
+
+
+
+const WaterMaterial = wf.createMaterial({
+  vertexLayout: wf.POS_NORMAL_UV,
+  createPipeline({ root, format, $$ }) {
+    const Varying = {
+      localPos: d.vec3f,
+      cameraPos: d.vec3f,
+    };
+
+    return {
+      pipeline: root['~unstable']
+        .withVertex(sphereVertex, wf.POS_NORMAL_UV.attrib)
+        .withFragment(sphereFragment, { fragColor: { format } })
+        .withPrimitive({ topology: 'triangle-list', cullMode: 'none' })
+        .withDepthStencil({
+          depthWriteEnabled: true,
+          depthCompare: 'less',
+          format: 'depth24plus',
+        })
+        .createPipeline(),
+    };
+  },
+});
+
   const BgMaterial = wf.createMaterial({
     vertexLayout: wf.POS_NORMAL_UV,
     createPipeline({ root, format, $$ }) {
@@ -543,6 +570,12 @@ export function createTerrarium(root: TgpuRoot, world: World) {
     ...BgMaterial.Bundle(),
     wf.TransformTrait({ position: d.vec3f(0), scale: d.vec3f(1.1) }),
     wf.ExtraBindingTrait({ group: undefined }),
+  );
+
+  world.spawn(
+    wf.MeshTrait(boxMesh),
+    ...WaterMaterial.Bundle(),
+    wf.TransformTrait({ position: d.vec3f(0, 0, -1.5) }),
   );
 
   const halo = world.spawn(
