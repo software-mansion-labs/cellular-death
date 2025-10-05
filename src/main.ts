@@ -2,6 +2,7 @@ import './style.css';
 
 import * as Tone from 'tone';
 import tgpu from 'typegpu';
+import * as d from 'typegpu/data';
 import * as wf from 'wayfare';
 import { createCameraRig } from './cameraRig.ts';
 import { createChamber } from './chamber.ts';
@@ -11,9 +12,13 @@ import { level1dialogue } from './dialogue.ts';
 import { createFoggyMaterial } from './foggyMaterial.ts';
 import { createInputManager } from './inputManager.ts';
 import { LEVELS } from './levels.ts';
+// import { createChamberOverlay } from './chamberOverlay.ts';
+import { createMoldSim } from './mold.ts';
 import { gameStateManager } from './saveGame.ts';
 import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
+
+const VOLUME_SIZE = 128;
 
 const quality: 'low' | 'high' | 'ultra' = 'ultra';
 let showingTitleScreen = true;
@@ -192,8 +197,23 @@ async function initGame() {
     }
   });
 
+  const sim = createMoldSim(
+    root,
+    VOLUME_SIZE,
+    {
+      spawnPoint: d.vec3f(9999),
+      spawnRate: 5_000,
+      targetCount: 100_000,
+    },
+    d.vec3f(-9999),
+    [],
+  );
+
+  // Chamber overlay
+  // const chamberOverlay = createChamberOverlay(root, world, sim);
+
   // Terrarium (preferably last as far as rendered object go, since it's semi-transparent)
-  const terrarium = createTerrarium(root, world);
+  const terrarium = createTerrarium(root, world, sim);
 
   // Camera rig
   const cameraRig = createCameraRig(world);
