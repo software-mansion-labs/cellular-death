@@ -1,20 +1,46 @@
 import './style.css';
 
+import * as Tone from 'tone';
 import tgpu from 'typegpu';
 import * as wf from 'wayfare';
 import { createCameraRig } from './cameraRig.ts';
 import { createChamber } from './chamber.ts';
 import { createInputManager } from './inputManager.ts';
+import { LEVELS } from './levels.ts';
 import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
-import * as Tone from 'tone';
+import { getDialogBox } from './dialogBox.ts';
+import { level1dialogue } from './dialogue.ts';
 
+let quality: 'low' | 'high' | 'ultra' = 'high';
 let showingTitleScreen = true;
+let pauseMenuVariant = false;
+
+function initAgingIndicator() {
+  const agingIndicator = document.getElementById('agingIndicator');
+  if (!agingIndicator) return;
+
+  document.addEventListener('keydown', (event) => {
+    if (event.code === 'KeyD') {
+      agingIndicator.style.opacity = '1';
+    }
+  });
+
+  document.addEventListener('keyup', (event) => {
+    if (event.code === 'KeyD') {
+      agingIndicator.style.opacity = '0';
+    }
+  });
+}
 
 function initButtons() {
   // sound and music
-  const clickSfx = new Tone.Player("assets/sfx/ambient-snare.mp3").toDestination();
-  const backgroudMusic =  new Tone.Player("assets/sfx/background-music.mp3").toDestination();
+  const clickSfx = new Tone.Player(
+    'assets/sfx/ambient-snare.mp3',
+  ).toDestination();
+  const backgroudMusic = new Tone.Player(
+    'assets/sfx/background-music.mp3',
+  ).toDestination();
   backgroudMusic.loop = true;
 
   // biome-ignore lint/style/noNonNullAssertion: it's fine
@@ -30,6 +56,12 @@ function initButtons() {
     } else {
       titleScreen.dataset.state = 'hidden';
     }
+
+    if (pauseMenuVariant) {
+      titleScreen.dataset.variant = 'pause';
+    } else {
+      titleScreen.dataset.variant = 'title';
+    }
   }
   updateUI();
 
@@ -40,18 +72,30 @@ function initButtons() {
     // setup Tone
     Tone.start();
 
-    // play the clickSfx
-    Tone.loaded().then(() => { 
-      clickSfx.start(); 
-      clickSfx.onstop = () => backgroudMusic.start();
-    } );
+    if (pauseMenuVariant) {
+      return;
+    }
 
+    // Not the pause menu, so we start the game 🍝
+    getDialogBox().enqueueMessage(...level1dialogue);
+
+    // play the clickSfx
+    Tone.loaded().then(() => {
+      clickSfx.start();
+      clickSfx.onstop = () => backgroudMusic.start();
+    });
   });
 
   // Pause menu
   document.addEventListener('keydown', (event) => {
+    if (showingTitleScreen) {
+      // Already shown
+      return;
+    }
+
     if (event.code === 'Escape') {
       showingTitleScreen = true;
+      pauseMenuVariant = true;
       updateUI();
     }
   });
@@ -75,16 +119,23 @@ function initButtons() {
     }
   });
 
-  muteButton?.addEventListener("click", () => {
+  muteButton?.addEventListener('click', () => {
     Tone.getDestination().mute = !Tone.getDestination().mute;
   });
 
   // reset button
   const resetButton = document.getElementById('resetButton');
+  let onReset: (() => void) | null = null;
 
   resetButton?.addEventListener('click', () => {
-    console.log('Reset clicked');
+    onReset?.();
   });
+
+  return {
+    setOnReset: (callback: () => void) => {
+      onReset = callback;
+    },
+  };
 }
 
 async function initGame() {
@@ -100,7 +151,13 @@ async function initGame() {
   const engine = new wf.Engine(root, renderer);
 
   const resizeCanvas = (canvas: HTMLCanvasElement) => {
-    const dpr = window.devicePixelRatio || 1;
+    const dpr =
+      (window.devicePixelRatio || 1) *
+      {
+        low: 0.25,
+        high: 0.5,
+        ultra: 1,
+      }[quality];
     canvas.width = canvas.clientWidth * dpr;
     canvas.height = canvas.clientHeight * dpr;
     renderer.updateViewport(canvas.width, canvas.height);
@@ -108,7 +165,8 @@ async function initGame() {
   resizeCanvas(canvas);
   window.addEventListener('resize', () => resizeCanvas(canvas));
 
-  initButtons();
+  const buttons = initButtons();
+  initAgingIndicator();
 
   const world = engine.world;
 
@@ -126,11 +184,60 @@ async function initGame() {
   // Camera rig
   const cameraRig = createCameraRig(world);
 
+  let currentLevelIndex = 0;
+  let levelInitialized = false;
+  let goalReachedShown = false;
+
+  const goalReachedIndicator = document.getElementById('goalReachedIndicator');
+  const levelIndicator = document.getElementById('levelIndicator');
+
+  function updateLevelIndicator() {
+    if (levelIndicator) {
+      levelIndicator.textContent = LEVELS[currentLevelIndex].name;
+    }
+  }
+
+  function loadLevel(index: number) {
+    currentLevelIndex = index;
+    terrarium.startLevel(LEVELS[currentLevelIndex]);
+    updateLevelIndicator();
+    goalReachedShown = false;
+    if (goalReachedIndicator) {
+      goalReachedIndicator.style.opacity = '0';
+    }
+  }
+
+  buttons.setOnReset(() => loadLevel(currentLevelIndex));
+
+  document.addEventListener('keydown', (event) => {
+    if (
+      event.code === 'Enter' &&
+      terrarium.goalReached &&
+      !showingTitleScreen
+    ) {
+      const nextLevel = currentLevelIndex + 1;
+      loadLevel(nextLevel < LEVELS.length ? nextLevel : 0);
+    }
+  });
+
   engine.run(() => {
     cameraRig.update();
     terrarium.update();
     sun.update();
     chamber.update();
+    getDialogBox().update();
+
+    if (!levelInitialized) {
+      levelInitialized = true;
+      loadLevel(0);
+    }
+
+    if (terrarium.goalReached && !goalReachedShown && !showingTitleScreen) {
+      goalReachedShown = true;
+      if (goalReachedIndicator) {
+        goalReachedIndicator.style.opacity = '1';
+      }
+    }
   });
 }
 

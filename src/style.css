@@ -1,59 +1,89 @@
 @import "tailwindcss";
 
 @font-face {
-  font-family: "TitleFont";
-  src: url("/assets/fonts/scriptina/SCRIPTIN.ttf") format("truetype");
-  font-weight: normal;
-  font-style: normal;
+    font-family: "TitleFont";
+    src: url("/assets/fonts/scriptina/SCRIPTIN.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal;
 }
 
 html,
 body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
 }
 
 canvas {
-  display: block;
-  width: 100vw;
-  height: 100vh;
+    display: block;
+    width: 100vw;
+    height: 100vh;
 }
 
 #titleScreen h1 {
-  font-family: "TitleFont", sans-serif;
-  font-size: 9rem;
-  margin-bottom: 100px;
+    font-family: "TitleFont", sans-serif;
+    font-size: 9rem;
+    margin-bottom: 100px;
 }
 
 #startButton {
-  font-size: 3rem;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  color: white;
-  cursor: pointer;
+    font-size: 3rem;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
 }
 
 #menuButtons {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  display: flex;
-  gap: 10px;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    gap: 10px;
 }
 
 #menuButtons button {
-  border: none;
-  padding: 8px;
-  border-radius: 0px;
-  cursor: pointer;
+    border: none;
+    padding: 8px;
+    border-radius: 0px;
+    cursor: pointer;
 }
 
 #menuButtons button img {
-  width: 48px;
-  height: 48px;
-  filter: brightness(0) invert(0.5);
+    width: 48px;
+    height: 48px;
+    filter: brightness(0) invert(0.5);
+}
+
+#dialogBox {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 800px;
+    margin-bottom: 20px;
+
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    font-size: 1.2rem;
+    line-height: 1.4;
+    padding: 16px 24px;
+    border-radius: 12px;
+    backdrop-filter: blur(6px);
+
+    text-align: left;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: none;
+}
+
+#dialogBox[data-state="visible"] {
+    opacity: 1;
+    pointer-events: auto;
+    transition: opacity 1s ease;
 }
