@@ -12,7 +12,7 @@ import { getDialogBox } from './dialogBox.ts';
 import { level1dialogue } from './dialogue.ts';
 import { createFoggyMaterial } from './foggyMaterial.ts';
 import { createInputManager } from './inputManager.ts';
-import { LEVELS } from './levels.ts';
+import { getCurrentLevel, LEVELS } from './levels.ts';
 import { createMoldSim } from './mold.ts';
 import { gameStateManager } from './saveGame.ts';
 import { createSun } from './sun.ts';
@@ -21,7 +21,7 @@ import { createTerrarium } from './terrarium.ts';
 const VOLUME_SIZE = 128;
 
 const quality: 'low' | 'high' | 'ultra' = 'ultra';
-let showingTitleScreen = false;
+let showingTitleScreen = true;
 let pauseMenuVariant = false;
 
 function initAgingIndicator() {
@@ -230,7 +230,7 @@ async function initGame() {
 
   function updateLevelIndicator() {
     if (levelIndicator) {
-      levelIndicator.textContent = LEVELS[gameState.levelIdx].name;
+      levelIndicator.textContent = getCurrentLevel()?.name ?? '';
     }
   }
 

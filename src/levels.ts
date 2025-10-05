@@ -4,7 +4,7 @@ import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import { gameStateManager } from './saveGame';
 
-export function getCurrentLevel() {
+export function getCurrentLevel(): Level | undefined {
   return LEVELS[gameStateManager.state.levelIdx];
 }
 

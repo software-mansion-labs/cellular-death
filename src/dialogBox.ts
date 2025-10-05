@@ -12,7 +12,10 @@ export function getDialogBox() {
 
 export interface DialogMessage {
   message: string;
-  characterStagger: number; // how many frames does displaying each character take?
+  /**
+   * How many seconds does displaying each character take
+   */
+  characterStagger: number;
 }
 
 class MessageTicker {

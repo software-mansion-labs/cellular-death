@@ -338,7 +338,7 @@ export function createChamberOverlay(
           extraBinding.group = renderBindGroups[1 - sim.currentTexture];
         });
 
-      if (getCurrentLevel().ending) {
+      if (getCurrentLevel()?.ending) {
         if (!overlay) {
           overlay = world.spawn(
             wf.MeshTrait(boxMesh),
