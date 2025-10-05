@@ -28,15 +28,6 @@ canvas {
   margin-bottom: 100px;
 }
 
-#startButton {
-  font-size: 3rem;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  color: white;
-  cursor: pointer;
-}
-
 #menuButtons {
   position: absolute;
   top: 10px;
