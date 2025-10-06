@@ -211,21 +211,26 @@ async function initGame() {
     const chamber = createChamber(world, foggy.material);
 
     // Control buttons
-    const controlButtons = createControlButtons(world, foggy.material, () => {
-      if (showingTitleScreen) {
-        return;
-      }
+    const controlButtons = createControlButtons(
+      world,
+      foggy.material,
+      () => {
+        if (showingTitleScreen) {
+          return;
+        }
 
-      if (terrarium.goalReached || gameState.levelIdx === -1) {
-        // Next level
-        const nextLevel = gameState.levelIdx + 1;
-        loadLevel(nextLevel < LEVELS.length ? nextLevel : 0);
-      } else {
-        // Restart
-        loadLevel(gameState.levelIdx);
-      }
-      resetSfx.start();
-    });
+        if (terrarium.goalReached || gameState.levelIdx === -1) {
+          // Next level
+          const nextLevel = gameState.levelIdx + 1;
+          loadLevel(nextLevel < LEVELS.length ? nextLevel : 0);
+        } else {
+          // Restart
+          loadLevel(gameState.levelIdx);
+        }
+        resetSfx.start();
+      },
+      () => !terrarium.goalReached && !!getCurrentLevel(),
+    );
 
     const sim = createMoldSim(
       root,

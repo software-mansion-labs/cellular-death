@@ -49,9 +49,13 @@ export const level1dialogue: DialogMessage[] = [
 ];
 
 export const level1EndDialogue: DialogMessage[] = [
-  { message: `Thank you.${mp}`, characterStagger: 0.1, onAppear() {
-    VO.thank_you.start();
-  } },
+  {
+    message: `Thank you.${mp}`,
+    characterStagger: 0.1,
+    onAppear() {
+      VO.thank_you.start();
+    },
+  },
   { message: `Proceed to the next task.${lp}`, characterStagger: 0.05 },
 ];
 
@@ -61,7 +65,7 @@ export const firstSlopesDialogue: DialogMessage[] = [
     characterStagger: 0.05,
     onAppear() {
       VO.the_local_fauna.start();
-    }
+    },
   },
   {
     message: `${sp}Use any opportunity to feed.${lp}`,
@@ -75,7 +79,7 @@ export const endingDialogue: DialogMessage[] = [
     characterStagger: 0.1,
     onAppear() {
       VO.the_entity_has_grown.start();
-    }
+    },
   },
   {
     message: `It's time.${lp}`,
@@ -100,7 +104,7 @@ export const voidMonologue: DialogMessage[] = [
     characterStagger: 0.1,
     onAppear() {
       VO.dont_be_scared.start();
-    }
+    },
   },
   {
     message: `${sp}It's an opportunity to start anew... and grow${lp}`,

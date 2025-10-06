@@ -25,6 +25,7 @@ export function createControlButtons(
   world: World,
   foggyMaterial: FoggyMaterial,
   onPress: () => void,
+  isRestartVariant: () => boolean,
 ) {
   const parent = world.spawn(
     ControlButtonTag,
@@ -80,12 +81,14 @@ export function createControlButtons(
       world
         .query(ControlButtonFaceTag, Hoverable, EmissiveMaterial.Params)
         .updateEach(([hoverable, params]) => {
-          params.color = hoverable.hover
-            ? d.vec3f(0.8, 0.8, 1)
-            : d.vec3f(0.6, 0.6, 0.8);
+          const baseColor = isRestartVariant()
+            ? d.vec3f(0.6, 0.6, 0.8)
+            : d.vec3f(0.6, 0.8, 0.7);
+
+          params.color = hoverable.hover ? baseColor.mul(1.1) : baseColor;
 
           if (hoverable.hover && inputData.dragging) {
-            params.color = d.vec3f(0.9, 0.9, 1);
+            params.color = baseColor.mul(1.2);
           }
 
           if (hoverable.hover && inputData.justLeftClicked && active) {
