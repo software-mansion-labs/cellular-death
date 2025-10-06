@@ -17,7 +17,7 @@ import { getCurrentLevel, type Level } from './levels.ts';
 import type { createMoldSim } from './mold.ts';
 import { createSphereMesh } from './sphereMesh.ts';
 
-const RAYMARCH_STEPS = 256;
+const RAYMARCH_STEPS = 128;
 const DENSITY_MULTIPLIER = 20;
 const HALO_COLOR = d.vec3f(1, 1, 1);
 

@@ -88,7 +88,7 @@ export const LEVELS: Level[] = [
       // Obstacle in the middle
       dist = std.min(
         dist,
-        sdBox3d(pos.sub(d.vec3f(1, 0.2, 0.5)), d.vec3f(0.5, 0.3, 1)),
+        sdBox3d(pos.sub(d.vec3f(0.8, 0.2, 0.5)), d.vec3f(0.3, 0.3, 0.5)),
       );
 
       // Displacement
