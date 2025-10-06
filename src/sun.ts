@@ -10,7 +10,6 @@ import * as std from 'typegpu/std';
 import * as wf from 'wayfare';
 import { mat4n, quatn } from 'wgpu-matrix';
 import { endingState, POUR_MOLD_STEP } from './endingState';
-import { getCurrentLevel } from './levels';
 import { Terrarium } from './terrarium';
 
 interface Transform {
