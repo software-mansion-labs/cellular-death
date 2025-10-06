@@ -4,8 +4,8 @@ import tgpu, { type TgpuRoot } from 'typegpu';
 import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import * as wf from 'wayfare';
-import type { Sun } from './sun.ts';
 import { endingState, POUR_MOLD_STEP } from './endingState.ts';
+import type { Sun } from './sun.ts';
 
 const fogStart = 1;
 const fogEnd = 25;
@@ -157,9 +157,16 @@ export const createFoggyMaterial = (root: TgpuRoot, world: World, sun: Sun) => {
           1,
         );
 
-        const alarmColor = foggyColor.mul(d.vec4f(1, 0.5, 0.5, 1)).add(d.vec4f(0.4, 0.1, 0.1, 0));
+        const alarmColor = foggyColor
+          .mul(d.vec4f(1, 0.5, 0.5, 1))
+          .add(d.vec4f(0.4, 0.1, 0.1, 0));
 
-        return std.mix(foggyColor, alarmColor, paramsUniform.$.alarm * (0.6 + std.abs(std.sin(paramsUniform.$.time * 2) * 0.4)));
+        return std.mix(
+          foggyColor,
+          alarmColor,
+          paramsUniform.$.alarm *
+            (0.6 + std.abs(std.sin(paramsUniform.$.time * 2) * 0.4)),
+        );
       });
 
       return {

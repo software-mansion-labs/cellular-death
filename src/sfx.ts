@@ -11,14 +11,20 @@ backgroudMusic.loop = true;
 
 export const siren = new Tone.Player('assets/sfx/siren.mp3').toDestination();
 siren.loop = true;
-export const constantSizzling = new Tone.Player('assets/sfx/constant-sizzling.mp3').toDestination();
+export const constantSizzling = new Tone.Player(
+  'assets/sfx/constant-sizzling.mp3',
+).toDestination();
 constantSizzling.loop = true;
 constantSizzling.volume.value = -10;
 export const splash = new Tone.Player('assets/sfx/splash.mp3').toDestination();
 splash.volume.value = -3;
-export const sizzleSwoosh = new Tone.Player('assets/sfx/sizzle-swoosh.mp3').toDestination();
+export const sizzleSwoosh = new Tone.Player(
+  'assets/sfx/sizzle-swoosh.mp3',
+).toDestination();
 sizzleSwoosh.volume.value = -3;
-export const explosion = new Tone.Player('assets/sfx/explosion.mp3').toDestination();
+export const explosion = new Tone.Player(
+  'assets/sfx/explosion.mp3',
+).toDestination();
 explosion.volume.value = -3;
 
 export const cellEatenSfx = new Tone.Player(

@@ -11,6 +11,7 @@ import { isWebGPUSupported, showWebGPUErrorModal } from './checkWebgpu.ts';
 import { createControlButtons } from './controlButton.ts';
 import { getDialogBox } from './dialogBox.ts';
 import { introMonologue } from './dialogue.ts';
+import { endingState, FALLING_STEP } from './endingState.ts';
 import { createFoggyMaterial } from './foggyMaterial.ts';
 import { createInputManager } from './inputManager.ts';
 import { getCurrentLevel, LEVELS } from './levels.ts';
@@ -27,7 +28,6 @@ import {
 } from './sfx.ts';
 import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
-import { endingState, FALLING_STEP } from './endingState.ts';
 
 const VOLUME_SIZE = 128;
 

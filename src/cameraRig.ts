@@ -4,9 +4,9 @@ import * as std from 'typegpu/std';
 import { saturate } from 'typegpu/std';
 import * as wf from 'wayfare';
 import { mat4n, quatn } from 'wgpu-matrix';
+import { endingState, FALLING_STEP } from './endingState';
 import { Hoverable } from './hoverable';
 import { InputData } from './inputManager';
-import { endingState, FALLING_STEP } from './endingState';
 
 function curveLookAngle(angle: number) {
   return Math.sign(angle) * angle ** 2;

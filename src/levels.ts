@@ -162,7 +162,7 @@ export const LEVELS: Level[] = [
     name: 'Slopes, just out of reach',
     spawnerPosition: d.vec3f(0.9, 0.9, 0.5),
     goalPosition: d.vec3f(0.8, 0.05, 0.5),
-    creaturePositions: [d.vec3f(0.1, 0.85, 0.7), d.vec3f(0.1, 0.85, 0.3)],
+    creaturePositions: [d.vec3f(0.1, 0.75, 0.7), d.vec3f(0.1, 0.75, 0.3)],
     onStart() {
       getDialogBox().enqueueMessage(...firstSlopesDialogue);
     },
