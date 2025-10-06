@@ -1,7 +1,7 @@
 import type { DialogMessage } from './dialogBox';
 import { endingState } from './endingState';
 import { gameStateManager } from './saveGame';
-import { VO } from './sfx';
+import { constantSizzling, siren, splash, VO } from './sfx';
 
 const sp = '_'.repeat(5);
 const mp = '_'.repeat(15);
@@ -87,6 +87,9 @@ export const endingDialogue: DialogMessage[] = [
     onAppear() {
       // Start flow
       setTimeout(() => {
+        siren.start();
+        constantSizzling.start();
+        splash.start();
         endingState.step++;
       }, 2000);
 

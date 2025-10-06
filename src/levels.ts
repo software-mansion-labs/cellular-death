@@ -12,6 +12,7 @@ import {
 } from './dialogue';
 import { endingState } from './endingState';
 import { gameStateManager } from './saveGame';
+import { explosion, sizzleSwoosh } from './sfx';
 
 export function getCurrentLevel(): Level | undefined {
   return LEVELS[gameStateManager.state.levelIdx];
@@ -434,10 +435,17 @@ export const LEVELS: Level[] = [
     onFinish() {
       // Start breaking the wall immediately
       endingState.step++;
+      sizzleSwoosh.start();
+
+      // Start the explosion a bit earlier
+      setTimeout(() => {
+        explosion.start();
+      }, 3500);
 
       // After 4 seconds, start falling
       setTimeout(() => {
         endingState.step++;
+
         const whiteOverlay = document.getElementById('whiteOverlay');
         whiteOverlay!.dataset.state = 'shown';
       }, 4000);

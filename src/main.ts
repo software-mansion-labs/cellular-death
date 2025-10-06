@@ -20,11 +20,14 @@ import {
   backgroudMusic,
   beginSfx,
   cellEatenSfx,
+  constantSizzling,
   resetSfx,
+  siren,
   winSfx,
 } from './sfx.ts';
 import { createSun } from './sun.ts';
 import { createTerrarium } from './terrarium.ts';
+import { endingState, FALLING_STEP } from './endingState.ts';
 
 const VOLUME_SIZE = 128;
 
@@ -278,6 +281,7 @@ async function initGame() {
     }
 
     let startedMusicFade = false;
+    let startedSirenFade = false;
 
     let creatureCount = 0;
     engine.run(() => {
@@ -321,6 +325,12 @@ async function initGame() {
       if (getCurrentLevel()?.ending && !startedMusicFade) {
         startedMusicFade = true;
         backgroudMusic.volume.linearRampTo(-1000, 5);
+      }
+
+      if (endingState.step === FALLING_STEP && !startedSirenFade) {
+        startedSirenFade = true;
+        siren.volume.linearRampTo(-1000, 5);
+        constantSizzling.volume.linearRampTo(-1000, 3);
       }
     });
   } catch (error) {
