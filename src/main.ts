@@ -277,6 +277,8 @@ async function initGame() {
       }
     }
 
+    let startedMusicFade = false;
+
     let creatureCount = 0;
     engine.run(() => {
       if (showingTitleScreen) {
@@ -315,6 +317,11 @@ async function initGame() {
         }
         creatureCount = newCount;
       });
+
+      if (getCurrentLevel()?.ending && !startedMusicFade) {
+        startedMusicFade = true;
+        backgroudMusic.volume.linearRampTo(-1000, 5);
+      }
     });
   } catch (error) {
     console.error('WebGPU initialization failed:', error);

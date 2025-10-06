@@ -6,6 +6,7 @@ import * as wf from 'wayfare';
 import { mat4n, quatn } from 'wgpu-matrix';
 import { Hoverable } from './hoverable';
 import { InputData } from './inputManager';
+import { endingState, FALLING_STEP } from './endingState';
 
 function curveLookAngle(angle: number) {
   return Math.sign(angle) * angle ** 2;
@@ -56,6 +57,8 @@ export function createCameraRig(world: World) {
     wf.TransformTrait({ position: d.vec3f(0, 0, 2) }),
   );
 
+  let endingFlySpeed = 0;
+
   return {
     update() {
       // Making the camera follow around the mouse
@@ -96,6 +99,12 @@ export function createCameraRig(world: World) {
           data.zoom = wf.encroach(data.zoom, zooming ? 1 : 0, 0.01, dt);
 
           perspective.fov = 70 - data.zoom * 40;
+
+          // ENDING fly towards the hole
+          if (endingState.step === FALLING_STEP) {
+            endingFlySpeed += time.deltaSeconds * 4;
+            transform.position.z -= endingFlySpeed * time.deltaSeconds;
+          }
         });
 
       // ---

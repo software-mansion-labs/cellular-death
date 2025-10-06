@@ -100,14 +100,18 @@ export const endingDialogue: DialogMessage[] = [
 
 export const voidMonologue: DialogMessage[] = [
   {
-    message: `Don't be scared, this isn't death${mp}`,
+    message: `Don't be scared, this isn't death...${mp}`,
     characterStagger: 0.1,
     onAppear() {
       VO.dont_be_scared.start();
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 20000);
     },
   },
   {
-    message: `${sp}It's an opportunity to start anew... and grow${lp}`,
+    message: `${sp}It's an opportunity to start anew... ${sp}and grow...${lp}`,
     characterStagger: 0.1,
   },
 ];

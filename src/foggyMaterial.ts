@@ -5,6 +5,7 @@ import * as d from 'typegpu/data';
 import * as std from 'typegpu/std';
 import * as wf from 'wayfare';
 import type { Sun } from './sun.ts';
+import { endingState, POUR_MOLD_STEP } from './endingState.ts';
 
 const fogStart = 1;
 const fogEnd = 25;
@@ -16,6 +17,7 @@ const FoggyGlobalParams = d.struct({
   lightDir: d.vec3f,
   lightViewProj: d.mat4x4f,
   time: d.f32,
+  alarm: d.f32,
 });
 
 const FoggyParams = d.struct({
@@ -148,12 +150,16 @@ export const createFoggyMaterial = (root: TgpuRoot, world: World, sun: Sun) => {
           dustFactor += factor * (0.025 + lightNoise * 0.02);
         }
 
-        return d.vec4f(
+        const foggyColor = d.vec4f(
           std
             .mix(finalColor, fogColor, fogStrength)
             .add(d.vec3f(1, 0.8, 0.8).mul(dustFactor)),
           1,
         );
+
+        const alarmColor = foggyColor.mul(d.vec4f(1, 0.5, 0.5, 1)).add(d.vec4f(0.4, 0.1, 0.1, 0));
+
+        return std.mix(foggyColor, alarmColor, paramsUniform.$.alarm * (0.6 + std.abs(std.sin(paramsUniform.$.time * 2) * 0.4)));
       });
 
       return {
@@ -188,6 +194,7 @@ export const createFoggyMaterial = (root: TgpuRoot, world: World, sun: Sun) => {
         lightDir: sun.direction,
         cameraPos,
         time: (performance.now() / 1000) % 1000,
+        alarm: endingState.step >= POUR_MOLD_STEP ? 1 : 0,
       });
     },
   };

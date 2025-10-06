@@ -438,17 +438,14 @@ export const LEVELS: Level[] = [
       // After 4 seconds, start falling
       setTimeout(() => {
         endingState.step++;
+        const whiteOverlay = document.getElementById('whiteOverlay');
+        whiteOverlay!.dataset.state = 'shown';
       }, 4000);
 
       // After 10 seconds, we're in the void
       setTimeout(() => {
         getDialogBox().enqueueMessage(...voidMonologue);
       }, 10000);
-
-      // After 20 seconds, we're done
-      setTimeout(() => {
-        endingState.step++;
-      }, 20000);
     },
     init: (pos: d.v3f) => {
       'kernel';
