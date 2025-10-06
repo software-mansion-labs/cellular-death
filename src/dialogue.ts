@@ -38,16 +38,20 @@ export const level1dialogue: DialogMessage[] = [
     onAppear: () => {
       gameStateManager.state.introMonologueStep = 1;
       gameStateManager.save();
+
+      VO.your_task_is_simple.start();
     },
   },
   {
     message: `${sp}Rotate the hexahedron. ${sp}Guide the Entity to the target. ${sp}Make any sacrifices necessary.${lp}`,
-    characterStagger: 0.05,
+    characterStagger: 0.07,
   },
 ];
 
 export const level1EndDialogue: DialogMessage[] = [
-  { message: `Thank you.${mp}`, characterStagger: 0.1 },
+  { message: `Thank you.${mp}`, characterStagger: 0.1, onAppear() {
+    VO.thank_you.start();
+  } },
   { message: `Proceed to the next task.${lp}`, characterStagger: 0.05 },
 ];
 
@@ -55,6 +59,9 @@ export const firstSlopesDialogue: DialogMessage[] = [
   {
     message: `The local fauna is conducive to the entity's growth.${mp}`,
     characterStagger: 0.05,
+    onAppear() {
+      VO.the_local_fauna.start();
+    }
   },
   {
     message: `${sp}Use any opportunity to feed.${lp}`,
@@ -66,6 +73,9 @@ export const endingDialogue: DialogMessage[] = [
   {
     message: `The entity has grown so much.${mp}`,
     characterStagger: 0.1,
+    onAppear() {
+      VO.the_entity_has_grown.start();
+    }
   },
   {
     message: `It's time.${lp}`,
@@ -88,6 +98,9 @@ export const voidMonologue: DialogMessage[] = [
   {
     message: `Don't be scared, this isn't death${mp}`,
     characterStagger: 0.1,
+    onAppear() {
+      VO.dont_be_scared.start();
+    }
   },
   {
     message: `${sp}It's an opportunity to start anew... and grow${lp}`,

@@ -10,6 +10,7 @@ import * as std from 'typegpu/std';
 import * as wf from 'wayfare';
 import { mat4n, quatn } from 'wgpu-matrix';
 import { Terrarium } from './terrarium';
+import { getCurrentLevel } from './levels';
 
 interface Transform {
   position: d.v3f;
@@ -94,7 +95,8 @@ export function createSun(root: TgpuRoot, engine: wf.Engine): Sun {
 
       let lightOrigin = d.vec3f(0, 16, 0);
 
-      if (terrariumTransform) {
+      if (terrariumTransform && terrariumTransform.rotation && getCurrentLevel()?.ending) {
+        // During the ending, we "rotate the room", and we simulate that by changing the light direction
         const rotMat = mat4n.fromQuat(terrariumTransform.rotation, d.mat4x4f());
         lightOrigin = rotMat.mul(d.vec4f(lightOrigin, 1)).xyz;
         const newLightDir = rotMat.mul(d.vec4f(baseLightDir, 0)).xyz;

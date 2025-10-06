@@ -1,9 +1,9 @@
-import { trait, type Entity, type World } from 'koota';
+import { trait, type World } from 'koota';
 import * as d from 'typegpu/data';
 import * as wf from 'wayfare';
 import { quatn } from 'wgpu-matrix';
-import type { FoggyMaterial } from './foggyMaterial.ts';
 import { endingState, FALLING_STEP } from './endingState.ts';
+import type { FoggyMaterial } from './foggyMaterial.ts';
 
 const [chamberMesh, chamberBrokenMesh, fanMesh] = await Promise.all([
   wf.meshAsset({ url: 'assets/models/chamber.obj' }).preload(),
@@ -48,9 +48,12 @@ export function createChamber(world: World, foggyMaterial: FoggyMaterial) {
 
       if (endingState.step >= FALLING_STEP && chamberEntity.isAlive()) {
         chamberEntity.destroy();
-        chamberBrokenEntity.get(wf.TransformTrait)!.scale.x = 1;
-        chamberBrokenEntity.get(wf.TransformTrait)!.scale.y = 1;
-        chamberBrokenEntity.get(wf.TransformTrait)!.scale.z = 1;
+        const transform = chamberBrokenEntity.get(wf.TransformTrait);
+        if (transform) {
+          transform.scale.x = 1;
+          transform.scale.y = 1;
+          transform.scale.z = 1;
+        }
       }
     },
   };

@@ -21,7 +21,16 @@ export const winSfx = new Tone.Player('assets/sfx/win.mp3').toDestination();
 winSfx.volume.value = -15;
 
 export const VO = Object.fromEntries(
-  ['welcome', 'press_the_button', 'your_cooperation_is'].map((key) => {
+  [
+    'welcome',
+    'press_the_button',
+    'your_cooperation_is',
+    'your_task_is_simple',
+    'thank_you',
+    'the_local_fauna',
+    'the_entity_has_grown',
+    'dont_be_scared',
+  ].map((key) => {
     const player = new Tone.Player(`assets/vo/${key}.mp3`).toDestination();
     player.volume.value = -5;
 
