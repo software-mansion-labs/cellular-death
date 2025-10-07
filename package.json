@@ -35,8 +35,8 @@
     "koota": "^0.5.1",
     "node": "^24.9.0",
     "tone": "^15.1.22",
-    "typegpu": "https://pkg.pr.new/software-mansion/TypeGPU/typegpu@2e96c75eb3d2332c02c2aff0f191a55600248381",
-    "wayfare": "^0.3.0-alpha.8",
+    "typegpu": "https://pkg.pr.new/software-mansion/TypeGPU/typegpu@50741ce3a6f5a352d608a1618dfd376000ac2cef",
+    "wayfare": "^0.3.0-alpha.13",
     "wgpu-matrix": "^3.4.0"
   }
 }

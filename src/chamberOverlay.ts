@@ -25,38 +25,27 @@ export function createChamberOverlay(
 ) {
   const canFilter = root.enabledFeatures.has('float32-filterable');
 
-  const renderLayout = tgpu.bindGroupLayout({
-    state: {
-      texture: d.texture3d(),
-      sampleType: canFilter ? 'float' : 'unfilterable-float',
-    },
-    terrain: {
-      texture: d.texture3d(),
-      sampleType: canFilter ? 'float' : 'unfilterable-float',
-    },
-    time: { uniform: d.f32 },
-    cameraPos: { uniform: d.vec3f },
-  });
-
   const sampler = tgpu['~unstable'].sampler({
     magFilter: canFilter ? 'linear' : 'nearest',
     minFilter: canFilter ? 'linear' : 'nearest',
   });
 
-  const resolution = d.vec3f(VOLUME_SIZE);
-
-  const terrain = root['~unstable']
-    .createTexture({
-      size: [resolution.x, resolution.y, resolution.z],
-      format: 'r32float',
-      dimension: '3d',
-    })
-    .$usage('sampled', 'storage');
-
-  const terrainSampled = terrain.createView();
-
   const MoldMaterial = wf.createMaterial({
     vertexLayout: wf.POS_NORMAL_UV,
+    paramsSchema: d.struct({
+      time: d.f32,
+      cameraPos: d.vec3f,
+    }),
+    paramsDefaults: {
+      time: 0,
+      cameraPos: d.vec3f(),
+    },
+    bindings: {
+      state: {
+        texture: d.texture3d(),
+        sampleType: canFilter ? 'float' : 'unfilterable-float',
+      },
+    },
     createPipeline({ root, format, $$ }) {
       const Varying = {
         localPos: d.vec3f,
@@ -84,8 +73,7 @@ export function createChamberOverlay(
         return {
           pos,
           localPos: input.pos,
-          cameraPos: $$.invModelMat.mul(d.vec4f(renderLayout.$.cameraPos, 1))
-            .xyz,
+          cameraPos: $$.invModelMat.mul(d.vec4f($$.params.cameraPos, 1)).xyz,
           localLightDir,
         };
       });
@@ -184,7 +172,7 @@ export function createChamberOverlay(
           }
 
           const sampleVec = std.textureSampleLevel(
-            renderLayout.$.state,
+            $$.bindings.state,
             sampler,
             texCoord,
             0,
@@ -216,19 +204,19 @@ export function createChamberOverlay(
             );
 
             const sampleX = std.textureSampleLevel(
-              renderLayout.$.state,
+              $$.bindings.state,
               sampler,
               slimeTexCoordX,
               0,
             ).x;
             const sampleY = std.textureSampleLevel(
-              renderLayout.$.state,
+              $$.bindings.state,
               sampler,
               slimeTexCoordY,
               0,
             ).x;
             const sampleZ = std.textureSampleLevel(
-              renderLayout.$.state,
+              $$.bindings.state,
               sampler,
               slimeTexCoordZ,
               0,
@@ -268,7 +256,7 @@ export function createChamberOverlay(
             const c2 = std.mix(c1, orange, t2);
             const baseColor = std.mix(c2, darkRed, t3);
 
-            const deathPulse = std.sin(renderLayout.$.time * 4.0) * 0.15 + 0.85;
+            const deathPulse = std.sin($$.params.time * 4.0) * 0.15 + 0.85;
             const slimeAlbedo = std.mix(
               baseColor,
               brightRed.mul(deathPulse),
@@ -310,15 +298,6 @@ export function createChamberOverlay(
   const cameraPosUniform = root.createUniform(d.vec3f);
   const creatureCount = root.createMutable(d.u32, 0);
 
-  const renderBindGroups = [0, 1].map((i) =>
-    root.createBindGroup(renderLayout, {
-      state: sim.textures[i],
-      terrain: terrainSampled,
-      cameraPos: cameraPosUniform.buffer,
-      time: timeUniform.buffer,
-    }),
-  );
-
   // Ray-marched volume
   let overlay: Entity | undefined;
 
@@ -333,9 +312,11 @@ export function createChamberOverlay(
       cameraPosUniform.write(cameraPos);
 
       world
-        .query(MoldMaterial.Params, wf.ExtraBindingTrait)
-        .updateEach(([_params, extraBinding]) => {
-          extraBinding.group = renderBindGroups[1 - sim.currentTexture];
+        .query(MoldMaterial.Params, MoldMaterial.Bindings)
+        .updateEach(([params, bindings]) => {
+          params.cameraPos = cameraPos;
+          params.time = now;
+          bindings.state = sim.textures[1 - sim.currentTexture];
         });
 
       if (getCurrentLevel()?.ending) {

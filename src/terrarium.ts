@@ -31,12 +31,6 @@ export const Terrarium = trait({
   rotationProgress: 0,
 });
 
-const MoldParams = d.struct({
-  time: d.f32,
-  cameraPos: d.vec3f,
-  opacityMultiplier: d.f32,
-});
-
 const blendState = {
   color: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
   alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
@@ -50,19 +44,7 @@ export function createTerrarium(
   let currentLevel: Level | null = null;
   const canFilter = root.enabledFeatures.has('float32-filterable');
 
-  const paramsUniform = root.createUniform(MoldParams);
-  const renderLayout = tgpu.bindGroupLayout({
-    state: {
-      texture: d.texture3d(),
-      sampleType: canFilter ? 'float' : 'unfilterable-float',
-    },
-    terrain: {
-      texture: d.texture3d(),
-      sampleType: canFilter ? 'float' : 'unfilterable-float',
-    },
-    params: { uniform: MoldParams },
-  });
-
+  const timeUniform = root.createUniform(d.f32);
   const sampler = tgpu['~unstable'].sampler({
     magFilter: canFilter ? 'linear' : 'nearest',
     minFilter: canFilter ? 'linear' : 'nearest',
@@ -89,7 +71,7 @@ export function createTerrarium(
       terrainWriteView.$,
       gid.xyz,
       d.vec4f(
-        std.saturate(levelSlot.$.init(samplePos, paramsUniform.$.time)),
+        std.saturate(levelSlot.$.init(samplePos, timeUniform.$)),
         0,
         0,
         1,
@@ -99,6 +81,22 @@ export function createTerrarium(
 
   const MoldMaterial = wf.createMaterial({
     vertexLayout: wf.POS_NORMAL_UV,
+    paramsSchema: d.struct({
+      time: d.f32,
+      cameraPos: d.vec3f,
+      opacityMultiplier: d.f32,
+    }),
+    paramsDefaults: {
+      time: 0,
+      cameraPos: d.vec3f(0, 0, 0),
+      opacityMultiplier: 1,
+    },
+    bindings: {
+      state: {
+        texture: d.texture3d(),
+        sampleType: canFilter ? 'float' : 'unfilterable-float',
+      },
+    },
     createPipeline({ root, format, $$ }) {
       const Varying = {
         localPos: d.vec3f,
@@ -126,9 +124,7 @@ export function createTerrarium(
         return {
           pos,
           localPos: input.pos,
-          cameraPos: $$.invModelMat.mul(
-            d.vec4f(renderLayout.$.params.cameraPos, 1),
-          ).xyz,
+          cameraPos: $$.invModelMat.mul(d.vec4f($$.params.cameraPos, 1)).xyz,
           localLightDir,
         };
       });
@@ -337,7 +333,7 @@ export function createTerrarium(
                 std.mix(gradientNormal, boxNormal, blendFactor),
               );
             } else {
-              terrainNormal = gradientNormal;
+              terrainNormal = d.vec3f(gradientNormal);
             }
 
             const terrainDiffuse = std.max(
@@ -356,7 +352,7 @@ export function createTerrarium(
           }
 
           const sampleVec = std.textureSampleLevel(
-            renderLayout.$.state,
+            $$.bindings.state,
             sampler,
             texCoord,
             0,
@@ -388,19 +384,19 @@ export function createTerrarium(
             );
 
             const sampleX = std.textureSampleLevel(
-              renderLayout.$.state,
+              $$.bindings.state,
               sampler,
               slimeTexCoordX,
               0,
             ).x;
             const sampleY = std.textureSampleLevel(
-              renderLayout.$.state,
+              $$.bindings.state,
               sampler,
               slimeTexCoordY,
               0,
             ).x;
             const sampleZ = std.textureSampleLevel(
-              renderLayout.$.state,
+              $$.bindings.state,
               sampler,
               slimeTexCoordZ,
               0,
@@ -440,8 +436,7 @@ export function createTerrarium(
             const c2 = std.mix(c1, orange, t2);
             const baseColor = std.mix(c2, darkRed, t3);
 
-            const deathPulse =
-              std.sin(renderLayout.$.params.time * 4.0) * 0.15 + 0.85;
+            const deathPulse = std.sin($$.params.time * 4.0) * 0.15 + 0.85;
             const slimeAlbedo = std.mix(
               baseColor,
               brightRed.mul(deathPulse),
@@ -461,9 +456,7 @@ export function createTerrarium(
         }
 
         const alpha = 1 - transmittance;
-        return d
-          .vec4f(accum, alpha)
-          .mul(renderLayout.$.params.opacityMultiplier);
+        return d.vec4f(accum, alpha).mul($$.params.opacityMultiplier);
       });
 
       return {
@@ -483,6 +476,9 @@ export function createTerrarium(
 
   const HaloMaterial = wf.createMaterial({
     vertexLayout: wf.POS_NORMAL_UV,
+    paramsSchema: d.struct({
+      time: d.f32,
+    }),
     createPipeline({ root, format, $$ }) {
       const Varying = {
         localPos: d.vec3f,
@@ -505,7 +501,7 @@ export function createTerrarium(
         in: Varying,
         out: d.vec4f,
       })(() => {
-        const time = renderLayout.$.params.time;
+        const time = $$.params.time;
         const alpha = (1 - std.fract(time)) * 0.5;
         return d.vec4f(HALO_COLOR, 1).mul(alpha);
       });
@@ -529,6 +525,9 @@ export function createTerrarium(
   });
 
   const BgMaterial = wf.createMaterial({
+    paramsSchema: d.struct({
+      time: d.f32,
+    }),
     vertexLayout: wf.POS_NORMAL_UV,
     createPipeline({ root, format, $$ }) {
       const Varying = {
@@ -552,7 +551,7 @@ export function createTerrarium(
         in: Varying,
         out: d.vec4f,
       })((input) => {
-        const time = renderLayout.$.params.time;
+        const time = $$.params.time;
 
         const alpha =
           0.7 + std.abs(std.sin(input.localPos.y * 2 + time * 2)) * 0.2;
@@ -581,14 +580,6 @@ export function createTerrarium(
   let terrainPipeline: TgpuComputePipeline | undefined;
   const creatureCount = root.createMutable(d.u32, 0);
 
-  const renderBindGroups = [0, 1].map((i) =>
-    root.createBindGroup(renderLayout, {
-      state: sim.textures[i],
-      terrain: terrainSampled,
-      params: paramsUniform.buffer,
-    }),
-  );
-
   // Terrarium
   const terrarium = world.spawn(
     Terrarium(),
@@ -599,22 +590,19 @@ export function createTerrarium(
     wf.MeshTrait(boxMesh),
     ...BgMaterial.Bundle(),
     wf.TransformTrait({ position: d.vec3f(0), scale: d.vec3f(1.1) }),
-    wf.ExtraBindingTrait({ group: renderBindGroups[0] }),
   );
 
   const halo = world.spawn(
     wf.MeshTrait(boxMesh),
     ...HaloMaterial.Bundle(),
     wf.TransformTrait({ position: d.vec3f(0), scale: d.vec3f(1.3) }),
-    wf.ExtraBindingTrait({ group: renderBindGroups[0] }),
   );
 
   // Ray-marched volume
   const volume = world.spawn(
     wf.MeshTrait(boxMesh),
-    ...MoldMaterial.Bundle(),
+    ...MoldMaterial.Bundle(undefined, { state: sim.textures[0] }),
     wf.TransformTrait({ position: d.vec3f(0) }),
-    wf.ExtraBindingTrait({ group: renderBindGroups[0] }),
   );
 
   wf.connectAsChild(terrarium, halo);
@@ -682,6 +670,8 @@ export function createTerrarium(
     update() {
       const now = (performance.now() / 1000) % 1000;
       const time = wf.getOrThrow(world, wf.Time);
+
+      timeUniform.write(now);
 
       if (currentLevel?.animated && terrainPipeline) {
         terrainPipeline.dispatchWorkgroups(
@@ -843,12 +833,6 @@ export function createTerrarium(
               time.deltaSeconds,
             );
           }
-
-          paramsUniform.write({
-            time: now,
-            cameraPos,
-            opacityMultiplier: (transform.scale.z - 0.1) / 0.9,
-          });
         });
 
       if (shouldSimulate) {
@@ -856,22 +840,22 @@ export function createTerrarium(
       }
 
       world
-        .query(MoldMaterial.Params, wf.ExtraBindingTrait)
-        .updateEach(([_params, extraBinding]) => {
-          extraBinding.group = renderBindGroups[1 - sim.currentTexture];
+        .query(MoldMaterial.Params, MoldMaterial.Bindings, wf.TransformTrait)
+        .updateEach(([params, bindings, transform]) => {
+          params.time = now;
+          params.cameraPos = cameraPos;
+          params.opacityMultiplier = (transform.scale.z - 0.1) / 0.9;
+          bindings.state = sim.textures[1 - sim.currentTexture];
         });
 
-      world
-        .query(BgMaterial.Params, wf.ExtraBindingTrait)
-        .updateEach(([_params, extraBinding]) => {
-          extraBinding.group = renderBindGroups[1 - sim.currentTexture];
-        });
+      world.query(BgMaterial.Params).updateEach(([params]) => {
+        params.time = now;
+      });
 
       world
-        .query(HaloMaterial.Params, wf.TransformTrait, wf.ExtraBindingTrait)
-        .updateEach(([_params, transform, extraBinding]) => {
-          extraBinding.group = renderBindGroups[1 - sim.currentTexture];
-
+        .query(HaloMaterial.Params, wf.TransformTrait)
+        .updateEach(([params, transform]) => {
+          params.time = now;
           transform.scale = d.vec3f(1.1 + std.fract(now) * 0.05);
         });
     },
