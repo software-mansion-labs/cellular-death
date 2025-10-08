@@ -88,7 +88,7 @@ export function createTerrarium(
     }),
     paramsDefaults: {
       time: 0,
-      cameraPos: d.vec3f(0, 0, 0),
+      cameraPos: d.vec3f(),
       opacityMultiplier: 1,
     },
     bindings: {
@@ -525,10 +525,10 @@ export function createTerrarium(
   });
 
   const BgMaterial = wf.createMaterial({
+    vertexLayout: wf.POS_NORMAL_UV,
     paramsSchema: d.struct({
       time: d.f32,
     }),
-    vertexLayout: wf.POS_NORMAL_UV,
     createPipeline({ root, format, $$ }) {
       const Varying = {
         localPos: d.vec3f,

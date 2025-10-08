@@ -6,7 +6,6 @@ export const EmissiveMaterial = wf.createMaterial({
   paramsSchema: d.struct({
     color: d.vec3f,
   }),
-  paramsDefaults: { color: d.vec3f(1, 0, 1) },
   vertexLayout: wf.POS_NORMAL_UV,
 
   createPipeline({ root, format, $$ }) {

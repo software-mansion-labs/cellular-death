@@ -36,10 +36,6 @@ export function createChamberOverlay(
       time: d.f32,
       cameraPos: d.vec3f,
     }),
-    paramsDefaults: {
-      time: 0,
-      cameraPos: d.vec3f(),
-    },
     bindings: {
       state: {
         texture: d.texture3d(),
