@@ -35,6 +35,7 @@ export type FoggyMaterial = ReturnType<typeof createFoggyMaterial>['material'];
 export const createFoggyMaterial = (root: TgpuRoot, world: World, sun: Sun) => {
   const paramsUniform = root.createUniform(FoggyGlobalParams);
   const shadowMapView = sun.shadowMap.createView(d.textureDepth2d());
+  const perlinCache = perlin2d.staticCache({ root, size: d.vec2u(64, 64) });
 
   const sampleShadowMap = (ndc: d.v3f) => {
     'kernel';
@@ -135,18 +136,21 @@ export const createFoggyMaterial = (root: TgpuRoot, world: World, sun: Sun) => {
         );
 
         // Dust volumetrics
-        const dustUV = std.normalize(input.worldPos).mul(10);
-        const lightNoise =
-          perlin2d.sample(dustUV.xy.add(paramsUniform.$.time)) * 0.005;
-        const dustDisp = randf.inUnitSphere().mul(0.001);
+        const dustUV = std
+          .normalize(input.worldPos)
+          .xy.mul(2)
+          .add(paramsUniform.$.time * 0.1);
+
         let dustFactor = d.f32(0);
         for (let i = 0; i < volumetricSteps; i++) {
+          randf.seed2(input.uv);
           const ndct = std.mix(
             input.camLNDC,
             input.posLNDC,
-            (i / volumetricSteps) * 0.6 + 0.4,
+            (i / volumetricSteps) * 0.6 + 0.4 + (randf.sample() * 2 - 1) * 0.01,
           );
-          const factor = sampleShadowMap(ndct.add(dustDisp));
+          const factor = sampleShadowMap(ndct);
+          const lightNoise = perlin2d.sample(dustUV);
           dustFactor += factor * (0.025 + lightNoise * 0.02);
         }
 
@@ -171,6 +175,7 @@ export const createFoggyMaterial = (root: TgpuRoot, world: World, sun: Sun) => {
 
       return {
         pipeline: root['~unstable']
+          .pipe(perlinCache.inject())
           .withVertex(vertexFn, wf.POS_NORMAL_UV.attrib)
           .withFragment(fragmentFn, { format })
           .withPrimitive({ topology: 'triangle-list', cullMode: 'back' })
