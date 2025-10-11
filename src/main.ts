@@ -1,6 +1,7 @@
 import './style.css';
 
 import * as Tone from 'tone';
+import { version } from '../package.json';
 import tgpu from 'typegpu';
 import * as d from 'typegpu/data';
 import * as wf from 'wayfare';
@@ -165,6 +166,11 @@ function initButtons() {
 }
 
 async function initGame() {
+  const versionLabel = document.getElementById('version-label');
+  if (versionLabel) {
+    versionLabel.textContent = `v${version}`;
+  }
+
   if (!isWebGPUSupported()) {
     showWebGPUErrorModal();
     return;
