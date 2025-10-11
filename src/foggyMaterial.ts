@@ -1,4 +1,4 @@
-import { perlin2d, randf } from '@typegpu/noise';
+import { perlin3d, randf } from '@typegpu/noise';
 import type { World } from 'koota';
 import tgpu, { type TgpuRoot } from 'typegpu';
 import * as d from 'typegpu/data';
@@ -35,7 +35,7 @@ export type FoggyMaterial = ReturnType<typeof createFoggyMaterial>['material'];
 export const createFoggyMaterial = (root: TgpuRoot, world: World, sun: Sun) => {
   const paramsUniform = root.createUniform(FoggyGlobalParams);
   const shadowMapView = sun.shadowMap.createView(d.textureDepth2d());
-  const perlinCache = perlin2d.staticCache({ root, size: d.vec2u(64, 64) });
+  const perlinCache = perlin3d.staticCache({ root, size: d.vec3u(64, 64, 64) });
 
   const sampleShadowMap = (ndc: d.v3f) => {
     'kernel';
@@ -136,11 +136,6 @@ export const createFoggyMaterial = (root: TgpuRoot, world: World, sun: Sun) => {
         );
 
         // Dust volumetrics
-        const dustUV = std
-          .normalize(input.worldPos)
-          .xy.mul(2)
-          .add(paramsUniform.$.time * 0.1);
-
         let dustFactor = d.f32(0);
         for (let i = 0; i < volumetricSteps; i++) {
           randf.seed2(input.uv);
@@ -150,7 +145,16 @@ export const createFoggyMaterial = (root: TgpuRoot, world: World, sun: Sun) => {
             (i / volumetricSteps) * 0.6 + 0.4 + (randf.sample() * 2 - 1) * 0.01,
           );
           const factor = sampleShadowMap(ndct);
-          const lightNoise = perlin2d.sample(dustUV);
+          const dustUV = std
+            .normalize(input.worldPos)
+            .mul(2)
+            .add(paramsUniform.$.time * 0.1);
+          const dustSmallUV = std
+            .normalize(input.worldPos)
+            .mul(8)
+            .add(paramsUniform.$.time * 0.1);
+          const lightNoise =
+            perlin3d.sample(dustUV) + perlin3d.sample(dustSmallUV) * 0.4;
           dustFactor += factor * (0.025 + lightNoise * 0.02);
         }
 
