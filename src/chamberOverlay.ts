@@ -319,10 +319,8 @@ export function createChamberOverlay(
         if (!overlay) {
           overlay = world.spawn(
             wf.MeshTrait(boxMesh),
-            // ...wf.BlinnPhongMaterial.Bundle({ albedo: d.vec3f(1, 0, 0) }),
-            ...MoldMaterial.Bundle(),
+            ...MoldMaterial.Bundle(undefined, { state: sim.textures[0] }),
             wf.TransformTrait({ position: d.vec3f(0), scale: d.vec3f(10.9) }),
-            wf.ExtraBindingTrait({ group: undefined }),
           );
         }
       } else {
