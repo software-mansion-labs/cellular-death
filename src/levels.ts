@@ -19,7 +19,7 @@ export function getCurrentLevel(): Level | undefined {
 }
 
 const sdfCone = (pos: d.v3f, c: d.v2f, h: number) => {
-  'kernel';
+  'use gpu';
   const q = d.vec2f(c.x / c.y, -1).mul(h);
   const w = d.vec2f(std.length(pos.xz), pos.y);
   const a = w.sub(q.mul(std.saturate(std.dot(w, q) / std.dot(q, q))));
@@ -74,7 +74,7 @@ export const LEVELS: Level[] = [
       getDialogBox().enqueueMessage(...level1EndDialogue);
     },
     init: (pos: d.v3f) => {
-      'kernel';
+      'use gpu';
       const scale = d.f32(2);
       const noiseValue = perlin3d.sample(pos.mul(scale * 4));
       const noiseValue2 = perlin3d.sample(pos.mul(scale * 8));
@@ -103,7 +103,7 @@ export const LEVELS: Level[] = [
     spawnerPosition: d.vec3f(0.2, 0.5, 0.5),
     goalPosition: d.vec3f(0.8, 0.5, 0.5),
     init: (pos: d.v3f) => {
-      'kernel';
+      'use gpu';
       const scale = d.f32(2);
       const noiseValue = perlin3d.sample(pos.mul(scale * 4));
       const noiseValue2 = perlin3d.sample(pos.mul(scale * 8));
@@ -132,7 +132,7 @@ export const LEVELS: Level[] = [
     spawnerPosition: d.vec3f(0.2, 0.5, 0.5),
     goalPosition: d.vec3f(0.8, 0.5, 0.5),
     init: (pos: d.v3f) => {
-      'kernel';
+      'use gpu';
       const scale = d.f32(2);
       const noiseValue = perlin3d.sample(pos.mul(scale * 4));
       const noiseValue2 = perlin3d.sample(pos.mul(scale * 8));
@@ -167,7 +167,7 @@ export const LEVELS: Level[] = [
       getDialogBox().enqueueMessage(...firstSlopesDialogue);
     },
     init: (pos: d.v3f) => {
-      'kernel';
+      'use gpu';
       const scale = d.f32(2);
       const noiseValue = perlin3d.sample(pos.mul(scale * 4));
       const noiseValue2 = perlin3d.sample(pos.mul(scale * 8));
@@ -218,7 +218,7 @@ export const LEVELS: Level[] = [
       d.vec3f(0.5, 0.7, 0.5),
     ],
     init: (pos: d.v3f) => {
-      'kernel';
+      'use gpu';
       const scale = d.f32(2);
       const noiseValue = perlin3d.sample(pos.mul(scale));
       const noiseValue2 = perlin3d.sample(pos.mul(scale * 2));
@@ -233,7 +233,7 @@ export const LEVELS: Level[] = [
     spawnerPosition: d.vec3f(0.7, 0.7, 0.5),
     goalPosition: d.vec3f(0.7, 0.35, 0.5),
     init: (pos: d.v3f) => {
-      'kernel';
+      'use gpu';
       const rotMat1 = d.mat3x3f(
         d.vec3f(0.9994, -0.0349, 0),
         d.vec3f(0.0349, 0.9994, 0),
@@ -294,7 +294,7 @@ export const LEVELS: Level[] = [
     spawnerPosition: d.vec3f(0.5, 0.9, 0.5),
     goalPosition: d.vec3f(0.9, 0.9, 0.5),
     init: (pos: d.v3f) => {
-      'kernel';
+      'use gpu';
       const scale = d.f32(2);
       const noiseValue = perlin3d.sample(pos.mul(scale * 4));
       const noiseValue2 = perlin3d.sample(pos.mul(scale * 8));
@@ -325,7 +325,7 @@ export const LEVELS: Level[] = [
     spawnerPosition: d.vec3f(0.05, 0.2, 0.5),
     goalPosition: d.vec3f(0.9, 0.1, 0.5),
     init: (pos: d.v3f) => {
-      'kernel';
+      'use gpu';
       const scale = d.f32(2);
       const noiseValue = perlin3d.sample(pos.mul(scale * 4));
       const noiseValue2 = perlin3d.sample(pos.mul(scale * 8));
@@ -399,7 +399,7 @@ export const LEVELS: Level[] = [
     goalPosition: d.vec3f(0.9, 0.5, 0.5),
     animated: true,
     init: (pos: d.v3f, time: number) => {
-      'kernel';
+      'use gpu';
 
       const wavesX = std.sin((pos.x * 5 + time) * Math.PI * 2) * 0.1;
       const wavesZ = std.sin((pos.z * 5 - time) * Math.PI * 2) * 0.1;
@@ -456,7 +456,7 @@ export const LEVELS: Level[] = [
       }, 10000);
     },
     init: (pos: d.v3f) => {
-      'kernel';
+      'use gpu';
       let dist = d.f32(999999);
 
       // Platform

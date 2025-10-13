@@ -217,7 +217,7 @@ export function createMoldSim(
   });
 
   const getPerpendicular = (dir: d.v3f) => {
-    'kernel';
+    'use gpu';
     let axis = d.vec3f(1, 0, 0);
 
     // Find the axis that is least aligned
@@ -235,7 +235,7 @@ export function createMoldSim(
   };
 
   const getTerrainNormal = (pos: d.v3f, dimsf: d.v3f) => {
-    'kernel';
+    'use gpu';
     const offset = d.f32(2);
     const bounds = d.vec3f();
     const maxBounds = dimsf.sub(d.vec3f(1));
@@ -275,7 +275,7 @@ export function createMoldSim(
   };
 
   const sense3D = (pos: d.v3f, direction: d.v3f) => {
-    'kernel';
+    'use gpu';
     const dims = std.textureDimensions(computeLayout.$.oldState);
     const dimsf = d.vec3f(dims);
 

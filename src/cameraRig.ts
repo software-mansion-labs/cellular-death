@@ -31,7 +31,7 @@ const rayBoxIntersection = (
   boxMin: d.v3f,
   boxMax: d.v3f,
 ) => {
-  'kernel';
+  'use gpu';
   const invDir = d.vec3f(1).div(rayDir);
   const t0 = boxMin.sub(rayOrigin).mul(invDir);
   const t1 = boxMax.sub(rayOrigin).mul(invDir);

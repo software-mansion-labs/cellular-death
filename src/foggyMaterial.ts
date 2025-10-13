@@ -38,7 +38,7 @@ export const createFoggyMaterial = (root: TgpuRoot, world: World, sun: Sun) => {
   const perlinCache = perlin3d.staticCache({ root, size: d.vec3u(64, 64, 64) });
 
   const sampleShadowMap = (ndc: d.v3f) => {
-    'kernel';
+    'use gpu';
 
     let uv = ndc.xy.mul(0.5).add(0.5);
     uv = d.vec2f(uv.x, 1.0 - uv.y);

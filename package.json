@@ -23,19 +23,19 @@
     "nwjs-types": "^1.0.0",
     "tailwindcss": "^4.1.14",
     "typescript": "~5.8.3",
-    "unplugin-typegpu": "https://pkg.pr.new/software-mansion/TypeGPU/unplugin-typegpu@5fb9a434e8c8b0287fce9e03e824a02f6599fb62",
+    "unplugin-typegpu": "https://pkg.pr.new/software-mansion/TypeGPU/unplugin-typegpu@8c861fbe901d8a1ca543b28bb91c7ae0e38d2e10",
     "vite": "^7.1.7"
   },
   "license": "MIT",
   "packageManager": "pnpm@10.17.1",
   "dependencies": {
-    "@typegpu/noise": "https://pkg.pr.new/software-mansion/TypeGPU/@typegpu/noise@2e96c75eb3d2332c02c2aff0f191a55600248381",
+    "@typegpu/noise": "https://pkg.pr.new/software-mansion/TypeGPU/@typegpu/noise@8c861fbe901d8a1ca543b28bb91c7ae0e38d2e10",
     "@typegpu/sdf": "^0.7.0",
     "arktype": "^2.1.22",
     "koota": "^0.5.1",
     "node": "^24.9.0",
     "tone": "^15.1.22",
-    "typegpu": "https://pkg.pr.new/software-mansion/TypeGPU/typegpu@50741ce3a6f5a352d608a1618dfd376000ac2cef",
+    "typegpu": "https://pkg.pr.new/software-mansion/TypeGPU/typegpu@8c861fbe901d8a1ca543b28bb91c7ae0e38d2e10",
     "wayfare": "^0.3.0-alpha.14",
     "wgpu-matrix": "^3.4.0"
   }
